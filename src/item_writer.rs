@@ -490,26 +490,6 @@ mod tests {
     }
 
     #[test]
-    fn non_last_item_single_line_with_trailing_newline() -> fmt::Result {
-        let mut buf = String::new();
-        let mut writer = ItemWriter::new(&mut buf, false);
-        writer.write_str("foo\n")?;
-
-        assert_eq!(buf, "|-- foo\n");
-        Ok(())
-    }
-
-    #[test]
-    fn last_item_single_line_with_trailing_newline() -> fmt::Result {
-        let mut buf = String::new();
-        let mut writer = ItemWriter::new(&mut buf, true);
-        writer.write_str("foo\n")?;
-
-        assert_eq!(buf, "`-- foo\n");
-        Ok(())
-    }
-
-    #[test]
     fn non_last_item_multi_line() -> fmt::Result {
         let mut buf = String::new();
         let mut writer = ItemWriter::new(&mut buf, false);
@@ -526,26 +506,6 @@ mod tests {
         writer.write_str("foo\n\nbar")?;
 
         assert_eq!(buf, "`-- foo\n\n    bar");
-        Ok(())
-    }
-
-    #[test]
-    fn non_last_item_multi_line_with_trailing_newline() -> fmt::Result {
-        let mut buf = String::new();
-        let mut writer = ItemWriter::new(&mut buf, false);
-        writer.write_str("foo\n\nbar\n")?;
-
-        assert_eq!(buf, "|-- foo\n|\n|   bar\n");
-        Ok(())
-    }
-
-    #[test]
-    fn last_item_multi_line_with_trailing_newline() -> fmt::Result {
-        let mut buf = String::new();
-        let mut writer = ItemWriter::new(&mut buf, true);
-        writer.write_str("foo\n\nbar\n")?;
-
-        assert_eq!(buf, "`-- foo\n\n    bar\n");
         Ok(())
     }
 
