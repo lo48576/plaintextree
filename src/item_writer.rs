@@ -2,11 +2,77 @@
 
 use std::{fmt, mem};
 
+/// Prefix or padding.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PrefixOrPadding {
+    /// Prefix.
+    Prefix,
+    /// Padding.
+    Padding,
+}
+
+/// Edge config.
+#[derive(Debug, Clone)]
+pub enum EdgeConfig {
+    /// Standard ASCII tree.
+    ///
+    /// The same style as [`tree` command][unix-tree] with `LANG=C` for UNIX.
+    ///
+    /// ```text
+    /// .
+    /// |-- foo
+    /// |   |-- bar
+    /// |   |   `-- baz
+    /// |   |
+    /// |   |       baz2
+    /// |   `-- qux
+    /// |       `-- quux
+    /// |-- corge
+    /// `-- grault
+    /// ```
+    ///
+    /// [unix-tree]: http://mama.indstate.edu/users/ice/tree/
+    Ascii,
+}
+
+impl EdgeConfig {
+    /// Writes the prefix or padding with the given config.
+    fn write_edge<W: fmt::Write>(
+        &self,
+        writer: &mut W,
+        last_child: bool,
+        first_line: bool,
+        fragment: PrefixOrPadding,
+    ) -> fmt::Result {
+        use PrefixOrPadding::{Padding, Prefix};
+
+        match self {
+            Self::Ascii => match (first_line, last_child, fragment) {
+                (true, true, Prefix) => writer.write_str("`--"),
+                (true, false, Prefix) => writer.write_str("|--"),
+                (true, _, Padding) => writer.write_str(" "),
+                (false, true, Prefix) => writer.write_str(""),
+                (false, true, Padding) => writer.write_str("    "),
+                (false, false, Prefix) => writer.write_str("|"),
+                (false, false, Padding) => writer.write_str("   "),
+            },
+        }
+    }
+}
+
+impl Default for EdgeConfig {
+    fn default() -> Self {
+        EdgeConfig::Ascii
+    }
+}
+
 /// Options for `ItemWriter`.
 #[derive(Default, Debug, Clone)]
 pub struct ItemWriterOptions {
     /// Whether to emit trailing whitespace.
     emit_trailing_whitespace: bool,
+    /// Edge (prefix and padding) config.
+    edge: EdgeConfig,
 }
 
 impl ItemWriterOptions {
@@ -39,6 +105,12 @@ impl ItemWriterOptions {
         self
     }
 
+    /// Sets the edge style.
+    pub fn edge(&mut self, edge: EdgeConfig) -> &mut Self {
+        self.edge = edge;
+        self
+    }
+
     /// Creates a new `ItemWriter`.
     pub fn build<W: fmt::Write>(self, writer: W, is_last_child: bool) -> ItemWriter<W> {
         ItemWriter::with_options(writer, is_last_child, self)
@@ -55,8 +127,8 @@ pub struct ItemWriter<W> {
     opts: ItemWriterOptions,
     /// Whether the current line is the first line.
     at_first_line: bool,
-    /// Prefix emission status.
-    prefix_status: LinePrefixStatus,
+    /// Edge emission status.
+    edge_status: LineEdgeStatus,
 }
 
 impl<W: fmt::Write> ItemWriter<W> {
@@ -72,25 +144,25 @@ impl<W: fmt::Write> ItemWriter<W> {
             is_last_child,
             opts,
             at_first_line: true,
-            prefix_status: LinePrefixStatus::LineStart,
+            edge_status: LineEdgeStatus::LineStart,
         }
     }
 
     /// Writes a line prefix (and padding if possible) for the current line.
     fn write_prefix(&mut self) -> fmt::Result {
         assert_eq!(
-            self.prefix_status,
-            LinePrefixStatus::LineStart,
+            self.edge_status,
+            LineEdgeStatus::LineStart,
             "Prefix should be emitted only once for each line"
         );
-        self.prefix_status = LinePrefixStatus::PrefixEmitted;
+        self.edge_status = LineEdgeStatus::PrefixEmitted;
 
-        match (self.at_first_line, self.is_last_child) {
-            (true, true) => self.writer.write_str("`--"),
-            (true, false) => self.writer.write_str("|--"),
-            (false, true) => self.writer.write_str(""),
-            (false, false) => self.writer.write_str("|"),
-        }?;
+        self.opts.edge.write_edge(
+            &mut self.writer,
+            self.is_last_child,
+            self.at_first_line,
+            PrefixOrPadding::Prefix,
+        )?;
 
         if self.opts.emit_trailing_whitespace {
             // Padding is always necessary.
@@ -103,23 +175,24 @@ impl<W: fmt::Write> ItemWriter<W> {
     /// Writes a padding after the line prefix.
     fn write_padding(&mut self) -> fmt::Result {
         assert_eq!(
-            self.prefix_status,
-            LinePrefixStatus::PrefixEmitted,
+            self.edge_status,
+            LineEdgeStatus::PrefixEmitted,
             "Prefix should be emitted only once after each line prefix"
         );
-        self.prefix_status = LinePrefixStatus::PaddingEmitted;
+        self.edge_status = LineEdgeStatus::PaddingEmitted;
 
-        match (self.at_first_line, self.is_last_child) {
-            (true, _) => self.writer.write_str(" "),
-            (false, true) => self.writer.write_str("    "),
-            (false, false) => self.writer.write_str("   "),
-        }
+        self.opts.edge.write_edge(
+            &mut self.writer,
+            self.is_last_child,
+            self.at_first_line,
+            PrefixOrPadding::Padding,
+        )
     }
 
     /// Resets the writer status for the next new line.
     fn reset_line_state(&mut self) {
         self.at_first_line = false;
-        self.prefix_status = LinePrefixStatus::LineStart;
+        self.edge_status = LineEdgeStatus::LineStart;
     }
 }
 
@@ -132,13 +205,13 @@ impl<W: fmt::Write> fmt::Write for ItemWriter<W> {
             }
 
             // Write a line prefix if necessary.
-            if self.prefix_status == LinePrefixStatus::LineStart {
+            if self.edge_status == LineEdgeStatus::LineStart {
                 self.write_prefix()?;
             }
 
             // Write a padding if necessary.
             // Delay the emission of the padding until the line content is given.
-            if self.prefix_status == LinePrefixStatus::PrefixEmitted
+            if self.edge_status == LineEdgeStatus::PrefixEmitted
                 && (self.opts.emit_trailing_whitespace || !line.is_empty())
             {
                 self.write_padding()?;
@@ -160,7 +233,7 @@ impl<W: fmt::Write> fmt::Write for ItemWriter<W> {
 
 /// Line prefix emission status.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum LinePrefixStatus {
+enum LineEdgeStatus {
     /// At the beginning of the current line.
     LineStart,
     /// Emitted the prefix for the current line, but padding is not yet written.
