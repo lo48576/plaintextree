@@ -216,7 +216,7 @@ impl<W: fmt::Write> ItemWriter<W> {
     }
 
     /// Writes a line prefix (and padding if possible) for the current line.
-    fn write_prefix(&mut self) -> fmt::Result {
+    fn write_single_prefix(&mut self) -> fmt::Result {
         assert_eq!(
             self.state.edge_status,
             LineEdgeStatus::LineStart,
@@ -233,14 +233,14 @@ impl<W: fmt::Write> ItemWriter<W> {
 
         if self.state.opts.emit_trailing_whitespace {
             // Padding is always necessary.
-            self.write_padding()?;
+            self.write_single_padding()?;
         }
 
         Ok(())
     }
 
     /// Writes a padding after the line prefix.
-    fn write_padding(&mut self) -> fmt::Result {
+    fn write_single_padding(&mut self) -> fmt::Result {
         assert_eq!(
             self.state.edge_status,
             LineEdgeStatus::PrefixEmitted,
@@ -273,7 +273,7 @@ impl<W: fmt::Write> fmt::Write for ItemWriter<W> {
 
             // Write a line prefix if necessary.
             if self.state.edge_status == LineEdgeStatus::LineStart {
-                self.write_prefix()?;
+                self.write_single_prefix()?;
             }
 
             // Write a padding if necessary.
@@ -281,7 +281,7 @@ impl<W: fmt::Write> fmt::Write for ItemWriter<W> {
             if self.state.edge_status == LineEdgeStatus::PrefixEmitted
                 && (self.state.opts.emit_trailing_whitespace || !line.is_empty())
             {
-                self.write_padding()?;
+                self.write_single_padding()?;
             }
 
             // Write the line content.
