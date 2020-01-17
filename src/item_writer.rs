@@ -215,69 +215,14 @@ impl<W: fmt::Write> ItemWriter<W> {
         }
     }
 
-    /// Writes a line prefix (and padding if possible) for the current line.
-    fn write_single_prefix(&mut self) -> fmt::Result {
-        assert_eq!(
-            self.state.edge_status,
-            LineEdgeStatus::LineStart,
-            "Prefix should be emitted only once for each line"
-        );
-        self.state.edge_status = LineEdgeStatus::PrefixEmitted;
-
-        self.state.opts.edge.write_edge(
-            &mut self.writer,
-            self.state.is_last_child,
-            self.state.at_first_line,
-            PrefixOrPadding::Prefix,
-        )?;
-
-        if self.state.opts.emit_trailing_whitespace {
-            // Padding is always necessary.
-            self.write_single_padding()?;
-        }
-
-        Ok(())
-    }
-
-    /// Writes a padding after the line prefix.
-    fn write_single_padding(&mut self) -> fmt::Result {
-        assert_eq!(
-            self.state.edge_status,
-            LineEdgeStatus::PrefixEmitted,
-            "Prefix should be emitted only once after each line prefix"
-        );
-        self.state.edge_status = LineEdgeStatus::PaddingEmitted;
-
-        self.state.opts.edge.write_edge(
-            &mut self.writer,
-            self.state.is_last_child,
-            self.state.at_first_line,
-            PrefixOrPadding::Padding,
-        )
-    }
-
-    /// Writes a line prefix and padding if necessary.
-    fn write_single_prefix_for_line(&mut self, line: &str) -> fmt::Result {
-        // Write a line prefix if necessary.
-        if self.state.edge_status == LineEdgeStatus::LineStart {
-            self.write_single_prefix()?;
-        }
-
-        // Write a padding if necessary.
-        // Delay the emission of the padding until the line content is given.
-        if self.state.edge_status == LineEdgeStatus::PrefixEmitted
-            && (self.state.opts.emit_trailing_whitespace || !line.is_empty())
-        {
-            self.write_single_padding()?;
-        }
-
-        Ok(())
+    /// Writes line prefixes and paddings if necessary.
+    fn write_prefix_for_line(&mut self, line: &str) -> fmt::Result {
+        self.state.write_prefix_for_line(&mut self.writer, line)
     }
 
     /// Resets the writer status for the next new line.
     fn reset_line_state(&mut self) {
-        self.state.at_first_line = false;
-        self.state.edge_status = LineEdgeStatus::LineStart;
+        self.state.reset_line_state();
     }
 }
 
@@ -289,8 +234,8 @@ impl<W: fmt::Write> fmt::Write for ItemWriter<W> {
                 break;
             }
 
-            // Write a line prefix and padding if necessary.
-            self.write_single_prefix_for_line(line)?;
+            // Write line prefixes and paddings if necessary.
+            self.write_prefix_for_line(line)?;
 
             // Write the line content.
             self.writer.write_str(line)?;
@@ -317,6 +262,73 @@ struct ItemWriterState {
     at_first_line: bool,
     /// Edge emission status.
     edge_status: LineEdgeStatus,
+}
+
+impl ItemWriterState {
+    /// Writes a line prefix (and padding if possible) for the current line.
+    fn write_prefix<W: fmt::Write>(&mut self, writer: &mut W) -> fmt::Result {
+        assert_eq!(
+            self.edge_status,
+            LineEdgeStatus::LineStart,
+            "Prefix should be emitted only once for each line"
+        );
+        self.edge_status = LineEdgeStatus::PrefixEmitted;
+
+        self.opts.edge.write_edge(
+            writer,
+            self.is_last_child,
+            self.at_first_line,
+            PrefixOrPadding::Prefix,
+        )?;
+
+        if self.opts.emit_trailing_whitespace {
+            // Padding is always necessary.
+            self.write_padding(writer)?;
+        }
+
+        Ok(())
+    }
+
+    /// Writes a padding after the line prefix.
+    fn write_padding<W: fmt::Write>(&mut self, writer: &mut W) -> fmt::Result {
+        assert_eq!(
+            self.edge_status,
+            LineEdgeStatus::PrefixEmitted,
+            "Prefix should be emitted only once after each line prefix"
+        );
+        self.edge_status = LineEdgeStatus::PaddingEmitted;
+
+        self.opts.edge.write_edge(
+            writer,
+            self.is_last_child,
+            self.at_first_line,
+            PrefixOrPadding::Padding,
+        )
+    }
+
+    /// Writes a line prefix and padding if necessary.
+    fn write_prefix_for_line<W: fmt::Write>(&mut self, writer: &mut W, line: &str) -> fmt::Result {
+        // Write a line prefix if necessary.
+        if self.edge_status == LineEdgeStatus::LineStart {
+            self.write_prefix(writer)?;
+        }
+
+        // Write a padding if necessary.
+        // Delay the emission of the padding until the line content is given.
+        if self.edge_status == LineEdgeStatus::PrefixEmitted
+            && (self.opts.emit_trailing_whitespace || !line.is_empty())
+        {
+            self.write_padding(writer)?;
+        }
+
+        Ok(())
+    }
+
+    /// Resets the writer status for the next new line.
+    fn reset_line_state(&mut self) {
+        self.at_first_line = false;
+        self.edge_status = LineEdgeStatus::LineStart;
+    }
 }
 
 /// Line prefix emission status.
