@@ -33,6 +33,31 @@ pub enum EdgeConfig {
     ///
     /// [unix-tree]: http://mama.indstate.edu/users/ice/tree/
     Ascii,
+    /// Unicode assuming ruled line characters are single width (half width).
+    ///
+    /// The same style as [`tree` command][unix-tree] with `LANG=(lang).utf8` for UNIX.
+    ///
+    /// This won't be shown correctly in CJK fonts, because they usually have double-width glyphs
+    /// for ruled lines.
+    ///
+    /// About ambiguous width characters, see [UAX #11: East Asian Width][UAX-11].
+    ///
+    /// ```text
+    /// .
+    /// ├── foo
+    /// │   ├── bar
+    /// │   │   └── baz
+    /// │   │
+    /// │   │       baz2
+    /// │   └── qux
+    /// │       └── quux
+    /// ├── corge
+    /// └── grault
+    /// ```
+    ///
+    /// [UAX-11]: https://unicode.org/reports/tr11/
+    /// [unix-tree]: http://mama.indstate.edu/users/ice/tree/
+    UnicodeSingleWidth,
 }
 
 impl EdgeConfig {
@@ -54,6 +79,15 @@ impl EdgeConfig {
                 (false, true, Prefix) => writer.write_str(""),
                 (false, true, Padding) => writer.write_str("    "),
                 (false, false, Prefix) => writer.write_str("|"),
+                (false, false, Padding) => writer.write_str("   "),
+            },
+            Self::UnicodeSingleWidth => match (first_line, last_child, fragment) {
+                (true, true, Prefix) => writer.write_str("\u{2514}\u{2500}\u{2500}"),
+                (true, false, Prefix) => writer.write_str("\u{251C}\u{2500}\u{2500}"),
+                (true, _, Padding) => writer.write_str(" "),
+                (false, true, Prefix) => writer.write_str(""),
+                (false, true, Padding) => writer.write_str("    "),
+                (false, false, Prefix) => writer.write_str("\u{2502}"),
                 (false, false, Padding) => writer.write_str("   "),
             },
         }
@@ -346,6 +380,30 @@ mod tests {
                         |       `-- quux\n\
                         |-- corge\n\
                         `-- grault\n";
+        assert_eq!(got, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn unicode_single_width_tree() -> fmt::Result {
+        let opts = {
+            let mut opts = ItemWriterOptions::new();
+            opts.edge(EdgeConfig::UnicodeSingleWidth);
+            opts
+        };
+        let got = emit_test_tree(opts)?;
+
+        let expected = "\
+                        .\n\
+                        ├── foo\n\
+                        │   ├── bar\n\
+                        │   │   └── baz\n\
+                        │   │\n\
+                        │   │       baz2\n\
+                        │   └── qux\n\
+                        │       └── quux\n\
+                        ├── corge\n\
+                        └── grault\n";
         assert_eq!(got, expected);
         Ok(())
     }
