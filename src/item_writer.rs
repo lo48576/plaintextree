@@ -287,6 +287,69 @@ mod tests {
         );
     }
 
+    /// Emits the tree for testing.
+    ///
+    /// ```text
+    /// .
+    /// |-- foo
+    /// |   |-- bar
+    /// |   |   `-- baz
+    /// |   |
+    /// |   |       baz2
+    /// |   `-- qux
+    /// |       `-- quux
+    /// |-- corge
+    /// `-- grault
+    /// ```
+    fn emit_test_tree(opts: ItemWriterOptions) -> Result<String, fmt::Error> {
+        let mut buf = String::new();
+        buf.write_str(".\n")?;
+        {
+            let mut foo = opts.clone().build(&mut buf, false);
+            foo.write_str("foo\n")?;
+            {
+                let mut bar = opts.clone().build(&mut foo, false);
+                bar.write_str("bar\n")?;
+                opts.clone()
+                    .build(&mut bar, true)
+                    .write_str("baz\n\nbaz2\n")?;
+            }
+            {
+                let mut qux = opts.clone().build(&mut foo, true);
+                qux.write_str("qux\n")?;
+                opts.clone().build(&mut qux, true).write_str("quux\n")?;
+            }
+        }
+        opts.clone().build(&mut buf, false).write_str("corge\n")?;
+        opts.clone().build(&mut buf, true).write_str("grault\n")?;
+
+        Ok(buf)
+    }
+
+    #[test]
+    fn ascii_tree() -> fmt::Result {
+        let opts = {
+            let mut opts = ItemWriterOptions::new();
+            opts.edge(EdgeConfig::Ascii);
+            opts
+        };
+        let got = emit_test_tree(opts)?;
+
+        let expected = "\
+                        .\n\
+                        |-- foo\n\
+                        |   |-- bar\n\
+                        |   |   `-- baz\n\
+                        |   |\n\
+                        |   |       baz2\n\
+                        |   `-- qux\n\
+                        |       `-- quux\n\
+                        |-- corge\n\
+                        `-- grault\n";
+        assert_eq!(got, expected);
+        Ok(())
+    }
+
     #[test]
     fn non_last_item_single_line() -> fmt::Result {
         let mut buf = String::new();
