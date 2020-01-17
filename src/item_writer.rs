@@ -142,8 +142,6 @@ impl Default for EdgeConfig {
 pub struct ItemWriterOptions {
     /// Whether to emit trailing whitespace.
     emit_trailing_whitespace: bool,
-    /// Edge (prefix and padding) config.
-    edge: EdgeConfig,
 }
 
 impl ItemWriterOptions {
@@ -159,11 +157,12 @@ impl ItemWriterOptions {
     /// ```
     /// use std::fmt::Write;
     /// # use plaintextree::ItemWriterOptions;
+    /// use plaintextree::EdgeConfig;
     /// let mut buf = String::new();
     /// let mut writer = {
     ///     let mut opts = ItemWriterOptions::new();
     ///     opts.emit_trailing_whitespace();
-    ///     opts.build(&mut buf, true)
+    ///     opts.build(&mut buf, true, EdgeConfig::Ascii)
     /// };
     /// writer.write_str("foo\n\nbar")?;
     ///
@@ -176,15 +175,14 @@ impl ItemWriterOptions {
         self
     }
 
-    /// Sets the edge style.
-    pub fn edge(&mut self, edge: EdgeConfig) -> &mut Self {
-        self.edge = edge;
-        self
-    }
-
     /// Creates a new `ItemWriter`.
-    pub fn build<W: fmt::Write>(self, writer: W, is_last_child: bool) -> ItemWriter<W> {
-        ItemWriter::with_options(writer, is_last_child, self)
+    pub fn build<W: fmt::Write>(
+        self,
+        writer: W,
+        is_last_child: bool,
+        edge: EdgeConfig,
+    ) -> ItemWriter<W> {
+        ItemWriter::with_options(writer, is_last_child, edge, self)
     }
 }
 
@@ -198,15 +196,20 @@ pub struct ItemWriter<W> {
 
 impl<W: fmt::Write> ItemWriter<W> {
     /// Creates a new `ItemWriter`.
-    pub fn new(writer: W, is_last_child: bool) -> Self {
-        Self::with_options(writer, is_last_child, Default::default())
+    pub fn new(writer: W, is_last_child: bool, edge: EdgeConfig) -> Self {
+        Self::with_options(writer, is_last_child, edge, Default::default())
     }
 
     /// Creates a new `ItemWriter` with the given options.
-    fn with_options(writer: W, is_last_child: bool, opts: ItemWriterOptions) -> Self {
+    fn with_options(
+        writer: W,
+        is_last_child: bool,
+        edge: EdgeConfig,
+        opts: ItemWriterOptions,
+    ) -> Self {
         Self {
             writer,
-            state: ItemWriterState::with_options(is_last_child, opts),
+            state: ItemWriterState::with_options(is_last_child, edge, opts),
         }
     }
 
@@ -252,6 +255,8 @@ impl<W: fmt::Write> fmt::Write for ItemWriter<W> {
 pub struct ItemWriterState {
     /// Whether the item is the last child.
     is_last_child: bool,
+    /// Edge config.
+    edge: EdgeConfig,
     /// Options.
     opts: ItemWriterOptions,
     /// Whether the current line is the first line.
@@ -262,14 +267,15 @@ pub struct ItemWriterState {
 
 impl ItemWriterState {
     /// Creates a new `ItemWriterState`.
-    pub fn new(is_last_child: bool) -> Self {
-        Self::with_options(is_last_child, Default::default())
+    pub fn new(is_last_child: bool, edge: EdgeConfig) -> Self {
+        Self::with_options(is_last_child, edge, Default::default())
     }
 
     /// Creates a new `ItemWriterState` with the given options.
-    pub fn with_options(is_last_child: bool, opts: ItemWriterOptions) -> Self {
+    pub fn with_options(is_last_child: bool, edge: EdgeConfig, opts: ItemWriterOptions) -> Self {
         Self {
             is_last_child,
+            edge,
             opts,
             at_first_line: true,
             edge_status: LineEdgeStatus::LineStart,
@@ -285,7 +291,7 @@ impl ItemWriterState {
         );
         self.edge_status = LineEdgeStatus::PrefixEmitted;
 
-        self.opts.edge.write_edge(
+        self.edge.write_edge(
             writer,
             self.is_last_child,
             self.at_first_line,
@@ -309,7 +315,7 @@ impl ItemWriterState {
         );
         self.edge_status = LineEdgeStatus::PaddingEmitted;
 
-        self.opts.edge.write_edge(
+        self.edge.write_edge(
             writer,
             self.is_last_child,
             self.at_first_line,
@@ -395,7 +401,7 @@ mod tests {
     #[test]
     fn empty_tree() {
         let mut buf = String::new();
-        let _writer = ItemWriter::new(&mut buf, false);
+        let _writer = ItemWriter::new(&mut buf, false, EdgeConfig::Ascii);
         assert!(
             buf.is_empty(),
             "Writer should write nothing until it is told to write something"
@@ -416,39 +422,40 @@ mod tests {
     /// |-- corge
     /// `-- grault
     /// ```
-    fn emit_test_tree(opts: ItemWriterOptions) -> Result<String, fmt::Error> {
+    fn emit_test_tree(edge: EdgeConfig, opts: ItemWriterOptions) -> Result<String, fmt::Error> {
         let mut buf = String::new();
         buf.write_str(".\n")?;
         {
-            let mut foo = opts.clone().build(&mut buf, false);
+            let mut foo = opts.clone().build(&mut buf, false, edge.clone());
             foo.write_str("foo\n")?;
             {
-                let mut bar = opts.clone().build(&mut foo, false);
+                let mut bar = opts.clone().build(&mut foo, false, edge.clone());
                 bar.write_str("bar\n")?;
                 opts.clone()
-                    .build(&mut bar, true)
+                    .build(&mut bar, true, edge.clone())
                     .write_str("baz\n\nbaz2\n")?;
             }
             {
-                let mut qux = opts.clone().build(&mut foo, true);
+                let mut qux = opts.clone().build(&mut foo, true, edge.clone());
                 qux.write_str("qux\n")?;
-                opts.clone().build(&mut qux, true).write_str("quux\n")?;
+                opts.clone()
+                    .build(&mut qux, true, edge.clone())
+                    .write_str("quux\n")?;
             }
         }
-        opts.clone().build(&mut buf, false).write_str("corge\n")?;
-        opts.clone().build(&mut buf, true).write_str("grault\n")?;
+        opts.clone()
+            .build(&mut buf, false, edge.clone())
+            .write_str("corge\n")?;
+        opts.clone()
+            .build(&mut buf, true, edge.clone())
+            .write_str("grault\n")?;
 
         Ok(buf)
     }
 
     #[test]
     fn ascii_tree() -> fmt::Result {
-        let opts = {
-            let mut opts = ItemWriterOptions::new();
-            opts.edge(EdgeConfig::Ascii);
-            opts
-        };
-        let got = emit_test_tree(opts)?;
+        let got = emit_test_tree(EdgeConfig::Ascii, ItemWriterOptions::new())?;
 
         let expected = "\
                         .\n\
@@ -467,12 +474,7 @@ mod tests {
 
     #[test]
     fn unicode_single_width_tree() -> fmt::Result {
-        let opts = {
-            let mut opts = ItemWriterOptions::new();
-            opts.edge(EdgeConfig::UnicodeSingleWidth);
-            opts
-        };
-        let got = emit_test_tree(opts)?;
+        let got = emit_test_tree(EdgeConfig::UnicodeSingleWidth, ItemWriterOptions::new())?;
 
         let expected = "\
                         .\n\
@@ -491,12 +493,7 @@ mod tests {
 
     #[test]
     fn unicode_double_width_tree() -> fmt::Result {
-        let opts = {
-            let mut opts = ItemWriterOptions::new();
-            opts.edge(EdgeConfig::UnicodeDoubleWidth);
-            opts
-        };
-        let got = emit_test_tree(opts)?;
+        let got = emit_test_tree(EdgeConfig::UnicodeDoubleWidth, ItemWriterOptions::new())?;
 
         let expected = "\
                         .\n\
@@ -516,7 +513,7 @@ mod tests {
     #[test]
     fn non_last_item_single_line() -> fmt::Result {
         let mut buf = String::new();
-        let mut writer = ItemWriter::new(&mut buf, false);
+        let mut writer = ItemWriter::new(&mut buf, false, EdgeConfig::Ascii);
         writer.write_str("foo")?;
 
         assert_eq!(buf, "|-- foo");
@@ -526,7 +523,7 @@ mod tests {
     #[test]
     fn last_item_single_line() -> fmt::Result {
         let mut buf = String::new();
-        let mut writer = ItemWriter::new(&mut buf, true);
+        let mut writer = ItemWriter::new(&mut buf, true, EdgeConfig::Ascii);
         writer.write_str("foo")?;
 
         assert_eq!(buf, "`-- foo");
@@ -536,7 +533,7 @@ mod tests {
     #[test]
     fn non_last_item_multi_line() -> fmt::Result {
         let mut buf = String::new();
-        let mut writer = ItemWriter::new(&mut buf, false);
+        let mut writer = ItemWriter::new(&mut buf, false, EdgeConfig::Ascii);
         writer.write_str("foo\n\nbar")?;
 
         assert_eq!(buf, "|-- foo\n|\n|   bar");
@@ -546,7 +543,7 @@ mod tests {
     #[test]
     fn last_item_multi_line() -> fmt::Result {
         let mut buf = String::new();
-        let mut writer = ItemWriter::new(&mut buf, true);
+        let mut writer = ItemWriter::new(&mut buf, true, EdgeConfig::Ascii);
         writer.write_str("foo\n\nbar")?;
 
         assert_eq!(buf, "`-- foo\n\n    bar");
@@ -559,7 +556,7 @@ mod tests {
         let mut writer = {
             let mut opts = ItemWriterOptions::new();
             opts.emit_trailing_whitespace();
-            opts.build(&mut buf, false)
+            opts.build(&mut buf, false, EdgeConfig::Ascii)
         };
         writer.write_str("foo\n\nbar")?;
 
@@ -573,7 +570,7 @@ mod tests {
         let mut writer = {
             let mut opts = ItemWriterOptions::new();
             opts.emit_trailing_whitespace();
-            opts.build(&mut buf, true)
+            opts.build(&mut buf, true, EdgeConfig::Ascii)
         };
         writer.write_str("foo\n\nbar")?;
 
