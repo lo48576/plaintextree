@@ -206,12 +206,7 @@ impl<W: fmt::Write> ItemWriter<W> {
     fn with_options(writer: W, is_last_child: bool, opts: ItemWriterOptions) -> Self {
         Self {
             writer,
-            state: ItemWriterState {
-                is_last_child,
-                opts,
-                at_first_line: true,
-                edge_status: LineEdgeStatus::LineStart,
-            },
+            state: ItemWriterState::with_options(is_last_child, opts),
         }
     }
 
@@ -254,7 +249,7 @@ impl<W: fmt::Write> fmt::Write for ItemWriter<W> {
 
 /// Item writer state for single nest level.
 #[derive(Debug, Clone)]
-struct ItemWriterState {
+pub struct ItemWriterState {
     /// Whether the item is the last child.
     is_last_child: bool,
     /// Options.
@@ -266,6 +261,21 @@ struct ItemWriterState {
 }
 
 impl ItemWriterState {
+    /// Creates a new `ItemWriterState`.
+    pub fn new(is_last_child: bool) -> Self {
+        Self::with_options(is_last_child, Default::default())
+    }
+
+    /// Creates a new `ItemWriterState` with the given options.
+    pub fn with_options(is_last_child: bool, opts: ItemWriterOptions) -> Self {
+        Self {
+            is_last_child,
+            opts,
+            at_first_line: true,
+            edge_status: LineEdgeStatus::LineStart,
+        }
+    }
+
     /// Writes a line prefix (and padding if possible) for the current line.
     fn write_prefix<W: fmt::Write>(&mut self, writer: &mut W) -> fmt::Result {
         assert_eq!(
