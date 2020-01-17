@@ -216,8 +216,9 @@ impl<W: fmt::Write> ItemWriter<W> {
     }
 
     /// Writes line prefixes and paddings if necessary.
-    fn write_prefix_for_line(&mut self, line: &str) -> fmt::Result {
-        self.state.write_prefix_for_line(&mut self.writer, line)
+    fn write_prefix_and_padding(&mut self, line_is_empty: bool) -> fmt::Result {
+        self.state
+            .write_prefix_and_padding(&mut self.writer, line_is_empty)
     }
 
     /// Resets the writer status for the next new line.
@@ -235,7 +236,7 @@ impl<W: fmt::Write> fmt::Write for ItemWriter<W> {
             }
 
             // Write line prefixes and paddings if necessary.
-            self.write_prefix_for_line(line)?;
+            self.write_prefix_and_padding(line.is_empty())?;
 
             // Write the line content.
             self.writer.write_str(line)?;
@@ -307,7 +308,11 @@ impl ItemWriterState {
     }
 
     /// Writes a line prefix and padding if necessary.
-    fn write_prefix_for_line<W: fmt::Write>(&mut self, writer: &mut W, line: &str) -> fmt::Result {
+    fn write_prefix_and_padding<W: fmt::Write>(
+        &mut self,
+        writer: &mut W,
+        line_is_empty: bool,
+    ) -> fmt::Result {
         // Write a line prefix if necessary.
         if self.edge_status == LineEdgeStatus::LineStart {
             self.write_prefix(writer)?;
@@ -316,7 +321,7 @@ impl ItemWriterState {
         // Write a padding if necessary.
         // Delay the emission of the padding until the line content is given.
         if self.edge_status == LineEdgeStatus::PrefixEmitted
-            && (self.opts.emit_trailing_whitespace || !line.is_empty())
+            && (self.opts.emit_trailing_whitespace || !line_is_empty)
         {
             self.write_padding(writer)?;
         }
