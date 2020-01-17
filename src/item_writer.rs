@@ -192,14 +192,8 @@ impl ItemWriterOptions {
 pub struct ItemWriter<W> {
     /// Writer.
     writer: W,
-    /// Whether the item is the last child.
-    is_last_child: bool,
-    /// Options.
-    opts: ItemWriterOptions,
-    /// Whether the current line is the first line.
-    at_first_line: bool,
-    /// Edge emission status.
-    edge_status: LineEdgeStatus,
+    /// Item writer state.
+    state: ItemWriterState,
 }
 
 impl<W: fmt::Write> ItemWriter<W> {
@@ -212,30 +206,32 @@ impl<W: fmt::Write> ItemWriter<W> {
     fn with_options(writer: W, is_last_child: bool, opts: ItemWriterOptions) -> Self {
         Self {
             writer,
-            is_last_child,
-            opts,
-            at_first_line: true,
-            edge_status: LineEdgeStatus::LineStart,
+            state: ItemWriterState {
+                is_last_child,
+                opts,
+                at_first_line: true,
+                edge_status: LineEdgeStatus::LineStart,
+            },
         }
     }
 
     /// Writes a line prefix (and padding if possible) for the current line.
     fn write_prefix(&mut self) -> fmt::Result {
         assert_eq!(
-            self.edge_status,
+            self.state.edge_status,
             LineEdgeStatus::LineStart,
             "Prefix should be emitted only once for each line"
         );
-        self.edge_status = LineEdgeStatus::PrefixEmitted;
+        self.state.edge_status = LineEdgeStatus::PrefixEmitted;
 
-        self.opts.edge.write_edge(
+        self.state.opts.edge.write_edge(
             &mut self.writer,
-            self.is_last_child,
-            self.at_first_line,
+            self.state.is_last_child,
+            self.state.at_first_line,
             PrefixOrPadding::Prefix,
         )?;
 
-        if self.opts.emit_trailing_whitespace {
+        if self.state.opts.emit_trailing_whitespace {
             // Padding is always necessary.
             self.write_padding()?;
         }
@@ -246,24 +242,24 @@ impl<W: fmt::Write> ItemWriter<W> {
     /// Writes a padding after the line prefix.
     fn write_padding(&mut self) -> fmt::Result {
         assert_eq!(
-            self.edge_status,
+            self.state.edge_status,
             LineEdgeStatus::PrefixEmitted,
             "Prefix should be emitted only once after each line prefix"
         );
-        self.edge_status = LineEdgeStatus::PaddingEmitted;
+        self.state.edge_status = LineEdgeStatus::PaddingEmitted;
 
-        self.opts.edge.write_edge(
+        self.state.opts.edge.write_edge(
             &mut self.writer,
-            self.is_last_child,
-            self.at_first_line,
+            self.state.is_last_child,
+            self.state.at_first_line,
             PrefixOrPadding::Padding,
         )
     }
 
     /// Resets the writer status for the next new line.
     fn reset_line_state(&mut self) {
-        self.at_first_line = false;
-        self.edge_status = LineEdgeStatus::LineStart;
+        self.state.at_first_line = false;
+        self.state.edge_status = LineEdgeStatus::LineStart;
     }
 }
 
@@ -276,14 +272,14 @@ impl<W: fmt::Write> fmt::Write for ItemWriter<W> {
             }
 
             // Write a line prefix if necessary.
-            if self.edge_status == LineEdgeStatus::LineStart {
+            if self.state.edge_status == LineEdgeStatus::LineStart {
                 self.write_prefix()?;
             }
 
             // Write a padding if necessary.
             // Delay the emission of the padding until the line content is given.
-            if self.edge_status == LineEdgeStatus::PrefixEmitted
-                && (self.opts.emit_trailing_whitespace || !line.is_empty())
+            if self.state.edge_status == LineEdgeStatus::PrefixEmitted
+                && (self.state.opts.emit_trailing_whitespace || !line.is_empty())
             {
                 self.write_padding()?;
             }
@@ -300,6 +296,19 @@ impl<W: fmt::Write> fmt::Write for ItemWriter<W> {
 
         Ok(())
     }
+}
+
+/// Item writer state for single nest level.
+#[derive(Debug, Clone)]
+struct ItemWriterState {
+    /// Whether the item is the last child.
+    is_last_child: bool,
+    /// Options.
+    opts: ItemWriterOptions,
+    /// Whether the current line is the first line.
+    at_first_line: bool,
+    /// Edge emission status.
+    edge_status: LineEdgeStatus,
 }
 
 /// Line prefix emission status.
