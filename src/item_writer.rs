@@ -39,6 +39,7 @@ pub enum EdgeConfig {
     ///
     /// This won't be shown correctly in CJK fonts, because they usually have double-width glyphs
     /// for ruled lines.
+    /// Consider using [`UnicodeDoubleWidth`] for East Asian environment.
     ///
     /// About ambiguous width characters, see [UAX #11: East Asian Width][UAX-11].
     ///
@@ -57,7 +58,34 @@ pub enum EdgeConfig {
     ///
     /// [UAX-11]: https://unicode.org/reports/tr11/
     /// [unix-tree]: http://mama.indstate.edu/users/ice/tree/
+    /// [`UnicodeDoubleWidth`]: #variant.UnicodeDoubleWidth
     UnicodeSingleWidth,
+    /// Unicode assuming ruled line characters are double width (full width).
+    ///
+    /// This would be useful for **East Asian** environment.
+    ///
+    /// This won't be shown correctly in non-east-asian fonts, because they usually have
+    /// single-width glyphs for ruled lines.
+    ///
+    /// About ambiguous width characters, see [UAX #11: East Asian Width][UAX-11].
+    ///
+    /// ```text
+    /// .
+    /// ├─ foo
+    /// │   ├─ bar
+    /// │   │   └─ baz
+    /// │   │
+    /// │   │        baz2
+    /// │   └─ qux
+    /// │        └─ quux
+    /// ├─ corge
+    /// └─ grault
+    /// ```
+    ///
+    /// Note that the single indent depth has the width of 5 spaces, not 4 spaces.
+    ///
+    /// [UAX-11]: https://unicode.org/reports/tr11/
+    UnicodeDoubleWidth,
 }
 
 impl EdgeConfig {
@@ -87,6 +115,15 @@ impl EdgeConfig {
                 (true, _, Padding) => writer.write_str(" "),
                 (false, true, Prefix) => writer.write_str(""),
                 (false, true, Padding) => writer.write_str("    "),
+                (false, false, Prefix) => writer.write_str("\u{2502}"),
+                (false, false, Padding) => writer.write_str("   "),
+            },
+            Self::UnicodeDoubleWidth => match (first_line, last_child, fragment) {
+                (true, true, Prefix) => writer.write_str("\u{2514}\u{2500}"),
+                (true, false, Prefix) => writer.write_str("\u{251C}\u{2500}"),
+                (true, _, Padding) => writer.write_str(" "),
+                (false, true, Prefix) => writer.write_str(""),
+                (false, true, Padding) => writer.write_str("     "),
                 (false, false, Prefix) => writer.write_str("\u{2502}"),
                 (false, false, Padding) => writer.write_str("   "),
             },
@@ -404,6 +441,30 @@ mod tests {
                         │       └── quux\n\
                         ├── corge\n\
                         └── grault\n";
+        assert_eq!(got, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn unicode_double_width_tree() -> fmt::Result {
+        let opts = {
+            let mut opts = ItemWriterOptions::new();
+            opts.edge(EdgeConfig::UnicodeDoubleWidth);
+            opts
+        };
+        let got = emit_test_tree(opts)?;
+
+        let expected = "\
+                        .\n\
+                        ├─ foo\n\
+                        │   ├─ bar\n\
+                        │   │   └─ baz\n\
+                        │   │\n\
+                        │   │        baz2\n\
+                        │   └─ qux\n\
+                        │        └─ quux\n\
+                        ├─ corge\n\
+                        └─ grault\n";
         assert_eq!(got, expected);
         Ok(())
     }
