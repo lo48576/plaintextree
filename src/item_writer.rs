@@ -5,63 +5,14 @@ use std::{
     mem,
 };
 
-use crate::config::{EdgeConfig, ItemStyle, PrefixPart};
-
-/// Options for `ItemWriter`.
-#[derive(Default, Debug, Clone, Copy)]
-pub struct ItemWriterOptions {
-    /// Whether to emit trailing whitespace.
-    emit_trailing_whitespace: bool,
-}
-
-impl ItemWriterOptions {
-    /// Creates a new `ItemWriterOptions`.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Let the writer emit trailing whitespace if the line has no content.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::fmt::Write;
-    /// # use plaintextree::ItemWriterOptions;
-    /// use plaintextree::{EdgeConfig, ItemStyle};
-    /// let mut buf = String::new();
-    /// let mut states = &mut [ItemStyle::new(true, EdgeConfig::Ascii).into()];
-    /// let mut writer = {
-    ///     let mut opts = ItemWriterOptions::new();
-    ///     opts.emit_trailing_whitespace();
-    ///     opts.build(&mut buf, states)
-    /// };
-    /// writer.write_str("foo\n\nbar")?;
-    ///
-    /// // Note that "    " is emited for an empty line between "foo" and "bar".
-    /// assert_eq!(buf, "`-- foo\n    \n    bar");
-    /// # std::fmt::Result::Ok(())
-    /// ```
-    pub fn emit_trailing_whitespace(&mut self) -> &mut Self {
-        self.emit_trailing_whitespace = true;
-        self
-    }
-
-    /// Creates a new `ItemWriter`.
-    pub fn build<'a, W: fmt::Write>(
-        self,
-        writer: &'a mut W,
-        states: &'a mut [ItemState],
-    ) -> ItemWriter<'a, W> {
-        ItemWriter::with_options(writer, states, self)
-    }
-}
+use crate::config::{EdgeConfig, ItemStyle, PrefixPart, TreeConfig};
 
 /// A sink to write single item.
 pub struct ItemWriter<'a, W> {
     /// Writer.
     writer: &'a mut W,
     /// Writer options.
-    opts: ItemWriterOptions,
+    opts: TreeConfig,
     /// Item writer state.
     states: &'a mut [ItemState],
 }
@@ -73,10 +24,10 @@ impl<'a, W: fmt::Write> ItemWriter<'a, W> {
     }
 
     /// Creates a new `ItemWriter` with the given node writer states and options.
-    fn with_options(
+    pub(crate) fn with_options(
         writer: &'a mut W,
         states: &'a mut [ItemState],
-        opts: ItemWriterOptions,
+        opts: TreeConfig,
     ) -> Self {
         Self {
             writer,
@@ -92,7 +43,7 @@ impl<'a, W: fmt::Write> ItemWriter<'a, W> {
         }
 
         // Delay the emission of the prefixes and paddings in some cases.
-        let emit_last_padding = self.opts.emit_trailing_whitespace || !line_is_empty;
+        let emit_last_padding = self.opts.emit_trailing_whitespace() || !line_is_empty;
         let last_non_omissible_prefix_index = if emit_last_padding {
             assert!(!self.states.is_empty(), "Decrement should never overflow");
             Some(self.states.len() - 1)
@@ -116,7 +67,7 @@ impl<'a, W: fmt::Write> ItemWriter<'a, W> {
                 .take(last_non_omissible_prefix_index)
                 .try_for_each(|state| {
                     if state.edge_status == LineEdgeStatus::LineStart {
-                        state.write_prefix(writer, opts.emit_trailing_whitespace)?;
+                        state.write_prefix(writer, opts.emit_trailing_whitespace())?;
                     }
                     if state.edge_status == LineEdgeStatus::PrefixEmitted {
                         state.write_padding(writer)?;
@@ -127,7 +78,7 @@ impl<'a, W: fmt::Write> ItemWriter<'a, W> {
 
             let last_state = &mut states[last_non_omissible_prefix_index];
             if last_state.edge_status == LineEdgeStatus::LineStart {
-                last_state.write_prefix(writer, opts.emit_trailing_whitespace)?;
+                last_state.write_prefix(writer, opts.emit_trailing_whitespace())?;
             }
             if last_state.edge_status == LineEdgeStatus::PrefixEmitted && emit_last_padding {
                 last_state.write_padding(writer)?;
@@ -325,6 +276,8 @@ mod tests {
 
     use std::fmt::Write;
 
+    use crate::config::TreeConfigBuilder;
+
     #[test]
     fn empty_tree() {
         let mut buf = String::new();
@@ -352,7 +305,7 @@ mod tests {
     /// |-- corge
     /// `-- grault
     /// ```
-    fn emit_test_tree(edge: EdgeConfig, opts: ItemWriterOptions) -> Result<String, fmt::Error> {
+    fn emit_test_tree(edge: EdgeConfig, opts: TreeConfig) -> Result<String, fmt::Error> {
         let mut buf = String::new();
         let mut states = Vec::new();
         buf.write_str(".\n")?;
@@ -399,7 +352,7 @@ mod tests {
 
     #[test]
     fn ascii_tree() -> fmt::Result {
-        let got = emit_test_tree(EdgeConfig::Ascii, ItemWriterOptions::new())?;
+        let got = emit_test_tree(EdgeConfig::Ascii, TreeConfig::new())?;
 
         let expected = "\
                         .\n\
@@ -418,7 +371,7 @@ mod tests {
 
     #[test]
     fn unicode_single_width_tree() -> fmt::Result {
-        let got = emit_test_tree(EdgeConfig::UnicodeSingleWidth, ItemWriterOptions::new())?;
+        let got = emit_test_tree(EdgeConfig::UnicodeSingleWidth, TreeConfig::new())?;
 
         let expected = "\
                         .\n\
@@ -437,7 +390,7 @@ mod tests {
 
     #[test]
     fn unicode_double_width_tree() -> fmt::Result {
-        let got = emit_test_tree(EdgeConfig::UnicodeDoubleWidth, ItemWriterOptions::new())?;
+        let got = emit_test_tree(EdgeConfig::UnicodeDoubleWidth, TreeConfig::new())?;
 
         let expected = "\
                         .\n\
@@ -503,9 +456,9 @@ mod tests {
         let mut buf = String::new();
         let states = &mut [ItemStyle::new(false, EdgeConfig::Ascii).into()];
         let mut writer = {
-            let mut opts = ItemWriterOptions::new();
+            let mut opts = TreeConfigBuilder::new();
             opts.emit_trailing_whitespace();
-            opts.build(&mut buf, states)
+            opts.build().build(&mut buf, states)
         };
         writer.write_str("foo\n\nbar")?;
 
@@ -518,9 +471,9 @@ mod tests {
         let mut buf = String::new();
         let states = &mut [ItemStyle::new(true, EdgeConfig::Ascii).into()];
         let mut writer = {
-            let mut opts = ItemWriterOptions::new();
+            let mut opts = TreeConfigBuilder::new();
             opts.emit_trailing_whitespace();
-            opts.build(&mut buf, states)
+            opts.build().build(&mut buf, states)
         };
         writer.write_str("foo\n\nbar")?;
 

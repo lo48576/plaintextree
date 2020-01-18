@@ -4,8 +4,8 @@
 #![warn(clippy::missing_docs_in_private_items)]
 
 pub use self::{
-    config::{EdgeConfig, ItemStyle},
-    item_writer::{ItemState, ItemWriter, ItemWriterOptions},
+    config::{EdgeConfig, ItemStyle, TreeConfig, TreeConfigBuilder},
+    item_writer::{ItemState, ItemWriter},
     tree_printer::TreePrinter,
 };
 

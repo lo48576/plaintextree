@@ -2,6 +2,8 @@
 
 use std::fmt;
 
+use crate::item_writer::{ItemState, ItemWriter};
+
 /// Part of a prefix.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum PrefixPart {
@@ -176,5 +178,77 @@ impl ItemStyle {
     /// Returns the edge config.
     pub(crate) fn edge(&self) -> &EdgeConfig {
         &self.edge
+    }
+}
+
+/// `TreeConfig` builder.
+#[derive(Default, Debug, Clone, Copy)]
+pub struct TreeConfigBuilder {
+    /// Current config.
+    config: TreeConfig,
+}
+
+impl TreeConfigBuilder {
+    /// Creates a new `TreeConfig`.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Let the writer emit trailing whitespace if the line has no content.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::fmt::Write;
+    /// use plaintextree::{EdgeConfig, ItemStyle, TreeConfigBuilder};
+    /// let mut buf = String::new();
+    /// let mut states = &mut [ItemStyle::new(true, EdgeConfig::Ascii).into()];
+    /// let mut writer = {
+    ///     let mut opts = TreeConfigBuilder::new();
+    ///     opts.emit_trailing_whitespace();
+    ///     opts.build().build(&mut buf, states)
+    /// };
+    /// writer.write_str("foo\n\nbar")?;
+    ///
+    /// // Note that "    " is emited for an empty line between "foo" and "bar".
+    /// assert_eq!(buf, "`-- foo\n    \n    bar");
+    /// # std::fmt::Result::Ok(())
+    /// ```
+    pub fn emit_trailing_whitespace(&mut self) -> &mut Self {
+        self.config.emit_trailing_whitespace = true;
+        self
+    }
+
+    /// Builds a `TreeConfig`.
+    pub fn build(self) -> TreeConfig {
+        self.config
+    }
+}
+
+/// Options common for a tree.
+#[derive(Default, Debug, Clone, Copy)]
+pub struct TreeConfig {
+    /// Whether to emit trailing whitespace.
+    emit_trailing_whitespace: bool,
+}
+
+impl TreeConfig {
+    /// Creates a new default `TreeConfig`.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Returns whether the writer should emit trailing whitespace if the line has no content.
+    pub fn emit_trailing_whitespace(self) -> bool {
+        self.emit_trailing_whitespace
+    }
+
+    /// Creates a new `ItemWriter`.
+    pub fn build<'a, W: fmt::Write>(
+        self,
+        writer: &'a mut W,
+        states: &'a mut [ItemState],
+    ) -> ItemWriter<'a, W> {
+        ItemWriter::with_options(writer, states, self)
     }
 }

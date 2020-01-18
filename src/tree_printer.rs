@@ -6,8 +6,8 @@ use std::{
 };
 
 use crate::{
-    config::ItemStyle,
-    item_writer::{ItemState, ItemWriterOptions},
+    config::{ItemStyle, TreeConfig},
+    item_writer::ItemState,
 };
 
 /// Tree print result.
@@ -53,14 +53,14 @@ pub struct TreePrinter<W> {
     /// Writer.
     writer: W,
     /// Options.
-    opts: ItemWriterOptions,
+    opts: TreeConfig,
     /// Item writer states for each nest level.
     states: Vec<ItemState>,
 }
 
 impl<W: fmt::Write> TreePrinter<W> {
     /// Creates a new `TreePrinter`.
-    pub fn new(writer: W, opts: ItemWriterOptions) -> Self {
+    pub fn new(writer: W, opts: TreeConfig) -> Self {
         Self {
             writer,
             opts,
@@ -122,7 +122,7 @@ mod tests {
     fn emit_test_tree(edge: EdgeConfig) -> Result<String> {
         let mut buf = String::new();
         buf.write_str(".\n")?;
-        let mut printer = TreePrinter::new(&mut buf, ItemWriterOptions::new());
+        let mut printer = TreePrinter::new(&mut buf, TreeConfig::new());
 
         printer.open_node(ItemStyle::new(false, edge.clone()), "foo")?;
         printer.open_node(ItemStyle::new(false, edge.clone()), "bar")?;
