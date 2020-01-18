@@ -213,7 +213,7 @@ impl TreeConfigBuilder {
     ///
     /// // Note that `"    "` is emitted for an empty line between "foo" and "bar".
     /// assert_eq!(buf, "`-- foo\n    \n    bar\n");
-    /// # plaintextree::tree_printer::Result::Ok(())
+    /// # plaintextree::Result::Ok(())
     /// ```
     pub fn emit_trailing_whitespace(&mut self, v: bool) -> &mut Self {
         self.config.emit_trailing_whitespace = v;
@@ -239,7 +239,7 @@ impl TreeConfigBuilder {
     ///
     /// // Note that the newline character at the end of the output.
     /// assert_eq!(buf, "`-- foo\n");
-    /// # plaintextree::tree_printer::Result::Ok(())
+    /// # plaintextree::Result::Ok(())
     /// ```
     ///
     /// If there are already a newline, the printer does not emit an additional newline.
@@ -256,7 +256,7 @@ impl TreeConfigBuilder {
     ///
     /// // Note that there are only one newline character at the end of the output.
     /// assert_eq!(buf, "`-- foo\n");
-    /// # plaintextree::tree_printer::Result::Ok(())
+    /// # plaintextree::Result::Ok(())
     /// ```
     ///
     /// With this flag unset, the tree printer does not emit an additional newline.
@@ -274,7 +274,7 @@ impl TreeConfigBuilder {
     ///
     /// // Note that there are no newline characters at the end of the output.
     /// assert_eq!(buf, "`-- foo");
-    /// # plaintextree::tree_printer::Result::Ok(())
+    /// # plaintextree::Result::Ok(())
     /// ```
     pub fn emit_trailing_newline(&mut self, v: bool) -> &mut Self {
         self.config.emit_trailing_newline = v;

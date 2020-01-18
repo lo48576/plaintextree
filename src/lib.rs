@@ -5,9 +5,9 @@
 
 pub use self::{
     config::{EdgeConfig, ItemStyle, TreeConfig, TreeConfigBuilder},
-    tree_printer::TreePrinter,
+    tree_printer::{Error, Result, TreePrinter},
 };
 
 pub(crate) mod config;
 pub(crate) mod item_writer;
-pub mod tree_printer;
+pub(crate) mod tree_printer;
