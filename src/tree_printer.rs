@@ -5,7 +5,10 @@ use std::{
     fmt::{self, Write},
 };
 
-use crate::item_writer::{ItemWriterOptions, ItemWriterState};
+use crate::{
+    config::{ItemStyle, TreeConfig},
+    item_writer::ItemState,
+};
 
 /// Tree print result.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -50,14 +53,14 @@ pub struct TreePrinter<W> {
     /// Writer.
     writer: W,
     /// Options.
-    opts: ItemWriterOptions,
+    opts: TreeConfig,
     /// Item writer states for each nest level.
-    states: Vec<ItemWriterState>,
+    states: Vec<ItemState>,
 }
 
 impl<W: fmt::Write> TreePrinter<W> {
     /// Creates a new `TreePrinter`.
-    pub fn new(writer: W, opts: ItemWriterOptions) -> Self {
+    pub fn new(writer: W, opts: TreeConfig) -> Self {
         Self {
             writer,
             opts,
@@ -66,17 +69,17 @@ impl<W: fmt::Write> TreePrinter<W> {
     }
 
     /// Opens a new node with the given content.
-    pub fn open_node(&mut self, state: ItemWriterState, content: impl fmt::Display) -> Result<()> {
+    pub fn open_node(&mut self, style: ItemStyle, content: impl fmt::Display) -> Result<()> {
         // Go to newline before emitting new node.
         if !self.states.is_empty() {
             self.opts
-                .build(&mut self.writer, &mut self.states)
+                .writer(&mut self.writer, &mut self.states)
                 .go_to_next_line()?;
         }
 
-        self.states.push(state);
+        self.states.push(style.into());
         self.opts
-            .build(&mut self.writer, &mut self.states)
+            .writer(&mut self.writer, &mut self.states)
             .write_fmt(format_args!("{}", content))?;
 
         Ok(())
@@ -89,10 +92,12 @@ impl<W: fmt::Write> TreePrinter<W> {
             return Err(Error::ExtraNodeClose);
         }
 
-        // Go to newline to prevent the writer from writing next nodes to the same line.
-        self.opts
-            .build(&mut self.writer, &mut self.states)
-            .go_to_next_line()?;
+        if self.opts.emit_trailing_newline() {
+            // Go to newline automatically at the end of a node.
+            self.opts
+                .writer(&mut self.writer, &mut self.states)
+                .go_to_next_line()?;
+        }
 
         self.states.pop();
 
@@ -114,26 +119,26 @@ impl<W: fmt::Write> TreePrinter<W> {
 mod tests {
     use super::*;
 
-    use crate::item_writer::EdgeConfig;
+    use crate::config::EdgeConfig;
 
     fn emit_test_tree(edge: EdgeConfig) -> Result<String> {
         let mut buf = String::new();
         buf.write_str(".\n")?;
-        let mut printer = TreePrinter::new(&mut buf, ItemWriterOptions::new());
+        let mut printer = TreePrinter::new(&mut buf, TreeConfig::new());
 
-        printer.open_node(ItemWriterState::new(false, edge.clone()), "foo")?;
-        printer.open_node(ItemWriterState::new(false, edge.clone()), "bar")?;
-        printer.open_node(ItemWriterState::new(true, edge.clone()), "baz\n\nbaz2")?;
+        printer.open_node(ItemStyle::non_last(edge.clone()), "foo")?;
+        printer.open_node(ItemStyle::non_last(edge.clone()), "bar")?;
+        printer.open_node(ItemStyle::last(edge.clone()), "baz\n\nbaz2")?;
         printer.close_node()?;
         printer.close_node()?;
-        printer.open_node(ItemWriterState::new(true, edge.clone()), "qux")?;
-        printer.open_node(ItemWriterState::new(true, edge.clone()), "quux")?;
+        printer.open_node(ItemStyle::last(edge.clone()), "qux")?;
+        printer.open_node(ItemStyle::last(edge.clone()), "quux")?;
         printer.close_node()?;
         printer.close_node()?;
         printer.close_node()?;
-        printer.open_node(ItemWriterState::new(false, edge.clone()), "corge\n")?;
+        printer.open_node(ItemStyle::non_last(edge.clone()), "corge\n")?;
         printer.close_node()?;
-        printer.open_node(ItemWriterState::new(true, edge.clone()), "grault")?;
+        printer.open_node(ItemStyle::last(edge.clone()), "grault")?;
         printer.close_node()?;
 
         printer.finalize()?;

@@ -4,9 +4,10 @@
 #![warn(clippy::missing_docs_in_private_items)]
 
 pub use self::{
-    item_writer::{EdgeConfig, ItemWriter, ItemWriterOptions, ItemWriterState},
-    tree_printer::TreePrinter,
+    config::{EdgeConfig, ItemStyle, TreeConfig, TreeConfigBuilder},
+    tree_printer::{Error, Result, TreePrinter},
 };
 
+pub(crate) mod config;
 pub(crate) mod item_writer;
-mod tree_printer;
+pub(crate) mod tree_printer;
