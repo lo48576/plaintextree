@@ -202,14 +202,13 @@ impl TreeConfigBuilder {
     ///
     /// ```
     /// use plaintextree::{EdgeConfig, ItemStyle, TreeConfigBuilder, TreePrinter};
-    /// let opts = {
-    ///     let mut opts = TreeConfigBuilder::new();
-    ///     opts.emit_trailing_whitespace(true);
-    ///     opts.build()
-    /// };
+    ///
+    /// let opts = TreeConfigBuilder::new()
+    ///     .emit_trailing_whitespace(true)
+    ///     .build();
+    ///
     /// let mut writer = TreePrinter::new(String::new(), opts);
-    /// let style = ItemStyle::new(true, EdgeConfig::Ascii);
-    /// writer.open_node(style, "foo\n\nbar")?;
+    /// writer.open_node(ItemStyle::new(true, EdgeConfig::Ascii), "foo\n\nbar")?;
     /// let buf = writer.finalize()?;
     ///
     /// // Note that `"    "` is emitted for an empty line between "foo" and "bar".
@@ -231,7 +230,9 @@ impl TreeConfigBuilder {
     ///
     /// ```
     /// use plaintextree::{EdgeConfig, ItemStyle, TreeConfig, TreePrinter};
+    ///
     /// let opts = TreeConfig::new();
+    ///
     /// let mut writer = TreePrinter::new(String::new(), opts);
     /// writer.open_node(ItemStyle::new(true, EdgeConfig::Ascii), "foo")?;
     /// let buf = writer.finalize()?;
@@ -245,7 +246,9 @@ impl TreeConfigBuilder {
     ///
     /// ```
     /// use plaintextree::{EdgeConfig, ItemStyle, TreeConfig, TreePrinter};
+    ///
     /// let opts = TreeConfig::new();
+    ///
     /// let mut writer = TreePrinter::new(String::new(), opts);
     /// // Feed a trailing newline explicitly.
     /// writer.open_node(ItemStyle::new(true, EdgeConfig::Ascii), "foo\n")?;
@@ -260,11 +263,11 @@ impl TreeConfigBuilder {
     ///
     /// ```
     /// use plaintextree::{EdgeConfig, ItemStyle, TreeConfigBuilder, TreePrinter};
-    /// let opts = {
-    ///     let mut opts = TreeConfigBuilder::new();
-    ///     opts.emit_trailing_newline(false);
-    ///     opts.build()
-    /// };
+    ///
+    /// let opts = TreeConfigBuilder::new()
+    ///     .emit_trailing_newline(false)
+    ///     .build();
+    ///
     /// let mut writer = TreePrinter::new(String::new(), opts);
     /// writer.open_node(ItemStyle::new(true, EdgeConfig::Ascii), "foo")?;
     /// let buf = writer.finalize()?;
