@@ -1,5 +1,15 @@
 //! Tree printer.
 //!
+//! # How to use
+//!
+//! 1.  Prepare a writer which implements [`std::fmt::Write`].
+//! 2.  Prepare a [`TreeConfig`] using [`TreeConfigBuilder`], or use the default value.
+//! 3.  Create a [`TreePrinter`].
+//! 4.  [Open a new node][open_node] or [close a node][close_node] as you need.
+//!     Specify [`ItemStyle`] for each node to control the visual styles.
+//! 5.  Finally, [`TreePrinter::finalize()`] will finalize the tree printing.
+//!     You get the inner writer as the retern value.
+//!
 //! # Examples
 //!
 //! ```
@@ -75,6 +85,15 @@
 //! assert_eq!(got, expected);
 //! # Ok::<_, plaintextree::Error>(())
 //! ```
+//!
+//! [`std::fmt::Write`]: https://doc.rust-lang.org/stable/std/fmt/trait.Write.html
+//! [`ItemStyle`]: struct.ItemStyle.html
+//! [`TreeConfig`]: struct.TreeConfig.html
+//! [`TreeConfigBuilder`]: struct.TreeConfigBuilder.html
+//! [`TreePrinter`]: struct.TreePrinter.html
+//! [`TreePrinter::finalize()`]: struct.TreePrinter.html#method.finalize
+//! [close_node]: struct.TreePrinter.html#method.close_node
+//! [open_node]: struct.TreePrinter.html#method.open_node
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 #![warn(clippy::missing_docs_in_private_items)]
