@@ -5,12 +5,12 @@ use std::{
     mem,
 };
 
-/// Prefix or padding.
+/// Part of a prefix.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum PrefixOrPadding {
-    /// Prefix.
+enum PrefixPart {
+    /// Non-whitespace part of a prefix.
     Prefix,
-    /// Padding.
+    /// Padding, whitespace-only suffix part of a prefix.
     Padding,
 }
 
@@ -99,9 +99,9 @@ impl EdgeConfig {
         writer: &mut W,
         last_child: bool,
         first_line: bool,
-        fragment: PrefixOrPadding,
+        fragment: PrefixPart,
     ) -> fmt::Result {
-        use PrefixOrPadding::{Padding, Prefix};
+        use PrefixPart::{Padding, Prefix};
 
         match self {
             Self::Ascii => match (first_line, last_child, fragment) {
@@ -382,7 +382,7 @@ impl ItemWriterState {
             writer,
             self.is_last_child,
             self.at_first_line,
-            PrefixOrPadding::Prefix,
+            PrefixPart::Prefix,
         )?;
 
         if emit_trailing_whitespace {
@@ -406,7 +406,7 @@ impl ItemWriterState {
             writer,
             self.is_last_child,
             self.at_first_line,
-            PrefixOrPadding::Padding,
+            PrefixPart::Padding,
         )
     }
 
