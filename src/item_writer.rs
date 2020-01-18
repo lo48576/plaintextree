@@ -16,6 +16,7 @@ enum PrefixOrPadding {
 
 /// Edge config.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum EdgeConfig {
     /// Standard ASCII tree.
     ///
