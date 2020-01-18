@@ -5,7 +5,7 @@ use std::{
     mem,
 };
 
-use crate::config::{EdgeConfig, PrefixPart};
+use crate::config::{EdgeConfig, ItemStyle, PrefixPart};
 
 /// Options for `ItemWriter`.
 #[derive(Default, Debug, Clone, Copy)]
@@ -99,9 +99,8 @@ impl<'a, W: fmt::Write> ItemWriter<'a, W> {
         } else {
             self.states.iter().rposition(|state| {
                 !state
-                    .style
-                    .edge
-                    .is_prefix_whitespace(state.style.is_last_child, state.at_first_line)
+                    .edge()
+                    .is_prefix_whitespace(state.is_last_child(), state.at_first_line)
             })
         };
         if let Some(last_non_omissible_prefix_index) = last_non_omissible_prefix_index {
@@ -191,35 +190,6 @@ impl<'a, W: fmt::Write> fmt::Write for ItemWriter<'a, W> {
     }
 }
 
-/// Item style.
-#[derive(Debug, Clone)]
-pub struct ItemStyle {
-    /// Whether the item is the last child.
-    is_last_child: bool,
-    /// Edge config.
-    edge: EdgeConfig,
-}
-
-impl ItemStyle {
-    /// Creates a new `ItemStyle`.
-    pub fn new(is_last_child: bool, edge: EdgeConfig) -> Self {
-        Self {
-            is_last_child,
-            edge,
-        }
-    }
-}
-
-impl From<ItemStyle> for ItemState {
-    fn from(style: ItemStyle) -> Self {
-        Self {
-            style,
-            at_first_line: true,
-            edge_status: LineEdgeStatus::LineStart,
-        }
-    }
-}
-
 /// Item writer state for single nest level.
 #[derive(Debug, Clone)]
 pub struct ItemState {
@@ -237,6 +207,16 @@ impl ItemState {
         self.edge_status == LineEdgeStatus::LineStart
     }
 
+    /// Returns whether the item is the last child.
+    fn is_last_child(&self) -> bool {
+        self.style.is_last_child()
+    }
+
+    /// Returns the edge config.
+    fn edge(&self) -> &EdgeConfig {
+        self.style.edge()
+    }
+
     /// Writes a line prefix (and padding if possible) for the current line.
     fn write_prefix<W: fmt::Write>(
         &mut self,
@@ -250,9 +230,9 @@ impl ItemState {
         );
         self.edge_status = LineEdgeStatus::PrefixEmitted;
 
-        self.style.edge.write_edge(
+        self.edge().write_edge(
             writer,
-            self.style.is_last_child,
+            self.is_last_child(),
             self.at_first_line,
             PrefixPart::Prefix,
         )?;
@@ -274,9 +254,9 @@ impl ItemState {
         );
         self.edge_status = LineEdgeStatus::PaddingEmitted;
 
-        self.style.edge.write_edge(
+        self.edge().write_edge(
             writer,
-            self.style.is_last_child,
+            self.is_last_child(),
             self.at_first_line,
             PrefixPart::Padding,
         )
@@ -286,6 +266,16 @@ impl ItemState {
     fn reset_line_state(&mut self) {
         self.at_first_line = false;
         self.edge_status = LineEdgeStatus::LineStart;
+    }
+}
+
+impl From<ItemStyle> for ItemState {
+    fn from(style: ItemStyle) -> Self {
+        Self {
+            style,
+            at_first_line: true,
+            edge_status: LineEdgeStatus::LineStart,
+        }
     }
 }
 

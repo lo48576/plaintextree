@@ -5,7 +5,10 @@ use std::{
     fmt::{self, Write},
 };
 
-use crate::item_writer::{ItemState, ItemStyle, ItemWriterOptions};
+use crate::{
+    config::ItemStyle,
+    item_writer::{ItemState, ItemWriterOptions},
+};
 
 /// Tree print result.
 pub type Result<T> = std::result::Result<T, Error>;

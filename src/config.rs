@@ -149,3 +149,32 @@ impl Default for EdgeConfig {
         EdgeConfig::Ascii
     }
 }
+
+/// Item style.
+#[derive(Debug, Clone)]
+pub struct ItemStyle {
+    /// Whether the item is the last child.
+    is_last_child: bool,
+    /// Edge config.
+    edge: EdgeConfig,
+}
+
+impl ItemStyle {
+    /// Creates a new `ItemStyle`.
+    pub fn new(is_last_child: bool, edge: EdgeConfig) -> Self {
+        Self {
+            is_last_child,
+            edge,
+        }
+    }
+
+    /// Returns whether the item is the last child.
+    pub(crate) fn is_last_child(&self) -> bool {
+        self.is_last_child
+    }
+
+    /// Returns the edge config.
+    pub(crate) fn edge(&self) -> &EdgeConfig {
+        &self.edge
+    }
+}
