@@ -346,8 +346,7 @@ mod tests {
     fn ascii_tree() -> fmt::Result {
         let got = emit_test_tree(EdgeConfig::Ascii, TreeConfig::new())?;
 
-        let expected = "\
-                        .\n\
+        let expected = ".\n\
                         |-- foo\n\
                         |   |-- bar\n\
                         |   |   `-- baz\n\
@@ -365,8 +364,7 @@ mod tests {
     fn unicode_single_width_tree() -> fmt::Result {
         let got = emit_test_tree(EdgeConfig::UnicodeSingleWidth, TreeConfig::new())?;
 
-        let expected = "\
-                        .\n\
+        let expected = ".\n\
                         ├── foo\n\
                         │   ├── bar\n\
                         │   │   └── baz\n\
@@ -384,8 +382,7 @@ mod tests {
     fn unicode_double_width_tree() -> fmt::Result {
         let got = emit_test_tree(EdgeConfig::UnicodeDoubleWidth, TreeConfig::new())?;
 
-        let expected = "\
-                        .\n\
+        let expected = ".\n\
                         ├─ foo\n\
                         │   ├─ bar\n\
                         │   │   └─ baz\n\

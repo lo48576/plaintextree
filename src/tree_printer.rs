@@ -149,8 +149,7 @@ mod tests {
     fn ascii() -> Result<()> {
         let got = emit_test_tree(EdgeConfig::Ascii)?;
 
-        let expected = "\
-                        .\n\
+        let expected = ".\n\
                         |-- foo\n\
                         |   |-- bar\n\
                         |   |   `-- baz\n\
@@ -168,8 +167,7 @@ mod tests {
     fn unicode_single_width() -> Result<()> {
         let got = emit_test_tree(EdgeConfig::UnicodeSingleWidth)?;
 
-        let expected = "\
-                        .\n\
+        let expected = ".\n\
                         ├── foo\n\
                         │   ├── bar\n\
                         │   │   └── baz\n\
