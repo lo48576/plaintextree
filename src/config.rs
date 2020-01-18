@@ -212,7 +212,7 @@ impl TreeConfigBuilder {
     /// writer.open_node(style, "foo\n\nbar")?;
     /// let buf = writer.finalize()?;
     ///
-    /// // Note that `"    "` is emited for an empty line between "foo" and "bar".
+    /// // Note that `"    "` is emitted for an empty line between "foo" and "bar".
     /// assert_eq!(buf, "`-- foo\n    \n    bar\n");
     /// # plaintextree::tree_printer::Result::Ok(())
     /// ```
