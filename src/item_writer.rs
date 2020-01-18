@@ -245,8 +245,9 @@ impl<'a, W: fmt::Write> ItemWriter<'a, W> {
         } else {
             self.states.iter().rposition(|state| {
                 !state
+                    .style
                     .edge
-                    .is_prefix_whitespace(state.is_last_child, state.at_first_line)
+                    .is_prefix_whitespace(state.style.is_last_child, state.at_first_line)
             })
         };
         if let Some(last_non_omissible_prefix_index) = last_non_omissible_prefix_index {
@@ -336,13 +337,30 @@ impl<'a, W: fmt::Write> fmt::Write for ItemWriter<'a, W> {
     }
 }
 
-/// Item writer state for single nest level.
+/// Item style.
 #[derive(Debug, Clone)]
-pub struct ItemWriterState {
+pub struct ItemStyle {
     /// Whether the item is the last child.
     is_last_child: bool,
     /// Edge config.
     edge: EdgeConfig,
+}
+
+impl ItemStyle {
+    /// Creates a new `ItemStyle`.
+    pub fn new(is_last_child: bool, edge: EdgeConfig) -> Self {
+        Self {
+            is_last_child,
+            edge,
+        }
+    }
+}
+
+/// Item writer state for single nest level.
+#[derive(Debug, Clone)]
+pub struct ItemWriterState {
+    /// Item style.
+    style: ItemStyle,
     /// Whether the current line is the first line.
     at_first_line: bool,
     /// Edge emission status.
@@ -353,8 +371,7 @@ impl ItemWriterState {
     /// Creates a new `ItemWriterState`.
     pub fn new(is_last_child: bool, edge: EdgeConfig) -> Self {
         Self {
-            is_last_child,
-            edge,
+            style: ItemStyle::new(is_last_child, edge),
             at_first_line: true,
             edge_status: LineEdgeStatus::LineStart,
         }
@@ -378,9 +395,9 @@ impl ItemWriterState {
         );
         self.edge_status = LineEdgeStatus::PrefixEmitted;
 
-        self.edge.write_edge(
+        self.style.edge.write_edge(
             writer,
-            self.is_last_child,
+            self.style.is_last_child,
             self.at_first_line,
             PrefixPart::Prefix,
         )?;
@@ -402,9 +419,9 @@ impl ItemWriterState {
         );
         self.edge_status = LineEdgeStatus::PaddingEmitted;
 
-        self.edge.write_edge(
+        self.style.edge.write_edge(
             writer,
-            self.is_last_child,
+            self.style.is_last_child,
             self.at_first_line,
             PrefixPart::Padding,
         )
