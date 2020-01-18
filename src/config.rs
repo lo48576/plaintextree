@@ -336,12 +336,12 @@ impl TreeConfig {
     }
 
     /// Returns whether the writer should emit trailing whitespace if the line has no content.
-    pub fn emit_trailing_whitespace(self) -> bool {
+    pub(crate) fn emit_trailing_whitespace(self) -> bool {
         self.emit_trailing_whitespace
     }
 
     /// Returns whether the writer should emit trailing newline at the tail of the tree.
-    pub fn emit_trailing_newline(self) -> bool {
+    pub(crate) fn emit_trailing_newline(self) -> bool {
         self.emit_trailing_newline
     }
 
