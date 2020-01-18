@@ -196,13 +196,15 @@ impl TreeConfigBuilder {
 
     /// Let the writer emit trailing whitespace if the line has no content.
     ///
+    /// The value is `false` by default.
+    ///
     /// # Examples
     ///
     /// ```
     /// use plaintextree::{EdgeConfig, ItemStyle, TreeConfigBuilder, TreePrinter};
     /// let opts = {
     ///     let mut opts = TreeConfigBuilder::new();
-    ///     opts.emit_trailing_whitespace();
+    ///     opts.emit_trailing_whitespace(true);
     ///     opts.build()
     /// };
     /// let mut writer = TreePrinter::new(String::new(), opts);
@@ -214,8 +216,8 @@ impl TreeConfigBuilder {
     /// assert_eq!(buf, "`-- foo\n    \n    bar\n");
     /// # plaintextree::tree_printer::Result::Ok(())
     /// ```
-    pub fn emit_trailing_whitespace(&mut self) -> &mut Self {
-        self.config.emit_trailing_whitespace = true;
+    pub fn emit_trailing_whitespace(&mut self, v: bool) -> &mut Self {
+        self.config.emit_trailing_whitespace = v;
         self
     }
 
@@ -226,10 +228,20 @@ impl TreeConfigBuilder {
 }
 
 /// Options common for a tree.
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct TreeConfig {
     /// Whether to emit trailing whitespace.
+    ///
+    /// Default is `false`.
     emit_trailing_whitespace: bool,
+}
+
+impl Default for TreeConfig {
+    fn default() -> Self {
+        Self {
+            emit_trailing_whitespace: false,
+        }
+    }
 }
 
 impl TreeConfig {

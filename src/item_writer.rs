@@ -449,7 +449,7 @@ mod tests {
         let states = &mut [ItemStyle::new(false, EdgeConfig::Ascii).into()];
         let mut writer = {
             let mut opts = TreeConfigBuilder::new();
-            opts.emit_trailing_whitespace();
+            opts.emit_trailing_whitespace(true);
             opts.build().writer(&mut buf, states)
         };
         writer.write_str("foo\n\nbar")?;
@@ -464,7 +464,7 @@ mod tests {
         let states = &mut [ItemStyle::new(true, EdgeConfig::Ascii).into()];
         let mut writer = {
             let mut opts = TreeConfigBuilder::new();
-            opts.emit_trailing_whitespace();
+            opts.emit_trailing_whitespace(true);
             opts.build().writer(&mut buf, states)
         };
         writer.write_str("foo\n\nbar")?;
