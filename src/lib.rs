@@ -11,4 +11,4 @@ pub use self::{
 
 pub(crate) mod config;
 pub(crate) mod item_writer;
-mod tree_printer;
+pub mod tree_printer;
