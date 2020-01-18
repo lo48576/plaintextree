@@ -199,20 +199,20 @@ impl TreeConfigBuilder {
     /// # Examples
     ///
     /// ```
-    /// use std::fmt::Write;
-    /// use plaintextree::{EdgeConfig, ItemStyle, TreeConfigBuilder};
-    /// let mut buf = String::new();
-    /// let mut states = &mut [ItemStyle::new(true, EdgeConfig::Ascii).into()];
-    /// let mut writer = {
+    /// use plaintextree::{EdgeConfig, ItemStyle, TreeConfigBuilder, TreePrinter};
+    /// let opts = {
     ///     let mut opts = TreeConfigBuilder::new();
     ///     opts.emit_trailing_whitespace();
-    ///     opts.build().writer(&mut buf, states)
+    ///     opts.build()
     /// };
-    /// writer.write_str("foo\n\nbar")?;
+    /// let mut writer = TreePrinter::new(String::new(), opts);
+    /// let style = ItemStyle::new(true, EdgeConfig::Ascii);
+    /// writer.open_node(style, "foo\n\nbar")?;
+    /// let buf = writer.finalize()?;
     ///
-    /// // Note that "    " is emited for an empty line between "foo" and "bar".
-    /// assert_eq!(buf, "`-- foo\n    \n    bar");
-    /// # std::fmt::Result::Ok(())
+    /// // Note that `"    "` is emited for an empty line between "foo" and "bar".
+    /// assert_eq!(buf, "`-- foo\n    \n    bar\n");
+    /// # plaintextree::tree_printer::Result::Ok(())
     /// ```
     pub fn emit_trailing_whitespace(&mut self) -> &mut Self {
         self.config.emit_trailing_whitespace = true;
