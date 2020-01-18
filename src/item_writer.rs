@@ -173,9 +173,9 @@ impl ItemWriterOptions {
     /// ```
     /// use std::fmt::Write;
     /// # use plaintextree::ItemWriterOptions;
-    /// use plaintextree::{EdgeConfig, ItemState};
+    /// use plaintextree::{EdgeConfig, ItemStyle};
     /// let mut buf = String::new();
-    /// let mut states = &mut [ItemState::new(true, EdgeConfig::Ascii)];
+    /// let mut states = &mut [ItemStyle::new(true, EdgeConfig::Ascii).into()];
     /// let mut writer = {
     ///     let mut opts = ItemWriterOptions::new();
     ///     opts.emit_trailing_whitespace();
@@ -356,6 +356,16 @@ impl ItemStyle {
     }
 }
 
+impl From<ItemStyle> for ItemState {
+    fn from(style: ItemStyle) -> Self {
+        Self {
+            style,
+            at_first_line: true,
+            edge_status: LineEdgeStatus::LineStart,
+        }
+    }
+}
+
 /// Item writer state for single nest level.
 #[derive(Debug, Clone)]
 pub struct ItemState {
@@ -368,15 +378,6 @@ pub struct ItemState {
 }
 
 impl ItemState {
-    /// Creates a new `ItemState`.
-    pub fn new(is_last_child: bool, edge: EdgeConfig) -> Self {
-        Self {
-            style: ItemStyle::new(is_last_child, edge),
-            at_first_line: true,
-            edge_status: LineEdgeStatus::LineStart,
-        }
-    }
-
     /// Returns whether the cursor is at the beginning of the line.
     pub(crate) fn is_at_line_head(&self) -> bool {
         self.edge_status == LineEdgeStatus::LineStart
@@ -483,7 +484,10 @@ mod tests {
     #[test]
     fn empty_tree() {
         let mut buf = String::new();
-        let _writer = ItemWriter::new(&mut buf, &mut [ItemState::new(false, EdgeConfig::Ascii)]);
+        let _writer = ItemWriter::new(
+            &mut buf,
+            &mut [ItemStyle::new(false, EdgeConfig::Ascii).into()],
+        );
         assert!(
             buf.is_empty(),
             "Writer should write nothing until it is told to write something"
@@ -510,13 +514,13 @@ mod tests {
         buf.write_str(".\n")?;
 
         {
-            states.push(ItemState::new(false, edge.clone()));
+            states.push(ItemStyle::new(false, edge.clone()).into());
             opts.build(&mut buf, &mut states).write_str("foo\n")?;
             {
-                states.push(ItemState::new(false, edge.clone()));
+                states.push(ItemStyle::new(false, edge.clone()).into());
                 opts.build(&mut buf, &mut states).write_str("bar\n")?;
                 {
-                    states.push(ItemState::new(true, edge.clone()));
+                    states.push(ItemStyle::new(true, edge.clone()).into());
                     opts.build(&mut buf, &mut states)
                         .write_str("baz\n\nbaz2\n")?;
                     states.pop();
@@ -524,10 +528,10 @@ mod tests {
                 states.pop();
             }
             {
-                states.push(ItemState::new(true, edge.clone()));
+                states.push(ItemStyle::new(true, edge.clone()).into());
                 opts.build(&mut buf, &mut states).write_str("qux\n")?;
                 {
-                    states.push(ItemState::new(true, edge.clone()));
+                    states.push(ItemStyle::new(true, edge.clone()).into());
                     opts.build(&mut buf, &mut states).write_str("quux\n")?;
                     states.pop();
                 }
@@ -536,12 +540,12 @@ mod tests {
             states.pop();
         }
         {
-            states.push(ItemState::new(false, edge.clone()));
+            states.push(ItemStyle::new(false, edge.clone()).into());
             opts.build(&mut buf, &mut states).write_str("corge\n")?;
             states.pop();
         }
         {
-            states.push(ItemState::new(true, edge.clone()));
+            states.push(ItemStyle::new(true, edge.clone()).into());
             opts.build(&mut buf, &mut states).write_str("grault\n")?;
             states.pop();
         }
@@ -609,7 +613,7 @@ mod tests {
     #[test]
     fn non_last_item_single_line() -> fmt::Result {
         let mut buf = String::new();
-        let states = &mut [ItemState::new(false, EdgeConfig::Ascii)];
+        let states = &mut [ItemStyle::new(false, EdgeConfig::Ascii).into()];
         let mut writer = ItemWriter::new(&mut buf, states);
         writer.write_str("foo")?;
 
@@ -620,7 +624,7 @@ mod tests {
     #[test]
     fn last_item_single_line() -> fmt::Result {
         let mut buf = String::new();
-        let states = &mut [ItemState::new(true, EdgeConfig::Ascii)];
+        let states = &mut [ItemStyle::new(true, EdgeConfig::Ascii).into()];
         let mut writer = ItemWriter::new(&mut buf, states);
         writer.write_str("foo")?;
 
@@ -631,7 +635,7 @@ mod tests {
     #[test]
     fn non_last_item_multi_line() -> fmt::Result {
         let mut buf = String::new();
-        let states = &mut [ItemState::new(false, EdgeConfig::Ascii)];
+        let states = &mut [ItemStyle::new(false, EdgeConfig::Ascii).into()];
         let mut writer = ItemWriter::new(&mut buf, states);
         writer.write_str("foo\n\nbar")?;
 
@@ -642,7 +646,7 @@ mod tests {
     #[test]
     fn last_item_multi_line() -> fmt::Result {
         let mut buf = String::new();
-        let states = &mut [ItemState::new(true, EdgeConfig::Ascii)];
+        let states = &mut [ItemStyle::new(true, EdgeConfig::Ascii).into()];
         let mut writer = ItemWriter::new(&mut buf, states);
         writer.write_str("foo\n\nbar")?;
 
@@ -653,7 +657,7 @@ mod tests {
     #[test]
     fn non_last_item_multi_line_with_trailing_spaces() -> fmt::Result {
         let mut buf = String::new();
-        let states = &mut [ItemState::new(false, EdgeConfig::Ascii)];
+        let states = &mut [ItemStyle::new(false, EdgeConfig::Ascii).into()];
         let mut writer = {
             let mut opts = ItemWriterOptions::new();
             opts.emit_trailing_whitespace();
@@ -668,7 +672,7 @@ mod tests {
     #[test]
     fn last_item_multi_line_with_trailing_spaces() -> fmt::Result {
         let mut buf = String::new();
-        let states = &mut [ItemState::new(true, EdgeConfig::Ascii)];
+        let states = &mut [ItemStyle::new(true, EdgeConfig::Ascii).into()];
         let mut writer = {
             let mut opts = ItemWriterOptions::new();
             opts.emit_trailing_whitespace();

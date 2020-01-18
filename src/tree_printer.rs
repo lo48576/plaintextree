@@ -5,7 +5,7 @@ use std::{
     fmt::{self, Write},
 };
 
-use crate::item_writer::{ItemState, ItemWriterOptions};
+use crate::item_writer::{ItemState, ItemStyle, ItemWriterOptions};
 
 /// Tree print result.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -66,7 +66,7 @@ impl<W: fmt::Write> TreePrinter<W> {
     }
 
     /// Opens a new node with the given content.
-    pub fn open_node(&mut self, state: ItemState, content: impl fmt::Display) -> Result<()> {
+    pub fn open_node(&mut self, style: ItemStyle, content: impl fmt::Display) -> Result<()> {
         // Go to newline before emitting new node.
         if !self.states.is_empty() {
             self.opts
@@ -74,7 +74,7 @@ impl<W: fmt::Write> TreePrinter<W> {
                 .go_to_next_line()?;
         }
 
-        self.states.push(state);
+        self.states.push(style.into());
         self.opts
             .build(&mut self.writer, &mut self.states)
             .write_fmt(format_args!("{}", content))?;
@@ -121,19 +121,19 @@ mod tests {
         buf.write_str(".\n")?;
         let mut printer = TreePrinter::new(&mut buf, ItemWriterOptions::new());
 
-        printer.open_node(ItemState::new(false, edge.clone()), "foo")?;
-        printer.open_node(ItemState::new(false, edge.clone()), "bar")?;
-        printer.open_node(ItemState::new(true, edge.clone()), "baz\n\nbaz2")?;
+        printer.open_node(ItemStyle::new(false, edge.clone()), "foo")?;
+        printer.open_node(ItemStyle::new(false, edge.clone()), "bar")?;
+        printer.open_node(ItemStyle::new(true, edge.clone()), "baz\n\nbaz2")?;
         printer.close_node()?;
         printer.close_node()?;
-        printer.open_node(ItemState::new(true, edge.clone()), "qux")?;
-        printer.open_node(ItemState::new(true, edge.clone()), "quux")?;
+        printer.open_node(ItemStyle::new(true, edge.clone()), "qux")?;
+        printer.open_node(ItemStyle::new(true, edge.clone()), "quux")?;
         printer.close_node()?;
         printer.close_node()?;
         printer.close_node()?;
-        printer.open_node(ItemState::new(false, edge.clone()), "corge\n")?;
+        printer.open_node(ItemStyle::new(false, edge.clone()), "corge\n")?;
         printer.close_node()?;
-        printer.open_node(ItemState::new(true, edge.clone()), "grault")?;
+        printer.open_node(ItemStyle::new(true, edge.clone()), "grault")?;
         printer.close_node()?;
 
         printer.finalize()?;
