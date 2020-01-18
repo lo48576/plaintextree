@@ -5,7 +5,6 @@
 
 pub use self::{
     config::{EdgeConfig, ItemStyle, TreeConfig, TreeConfigBuilder},
-    item_writer::{ItemState, ItemWriter},
     tree_printer::TreePrinter,
 };
 

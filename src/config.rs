@@ -244,11 +244,11 @@ impl TreeConfig {
     }
 
     /// Creates a new `ItemWriter`.
-    pub fn writer<'a, W: fmt::Write>(
+    pub(crate) fn writer<'a, W: fmt::Write>(
         self,
         writer: &'a mut W,
         states: &'a mut [ItemState],
     ) -> ItemWriter<'a, W> {
-        ItemWriter::with_options(writer, states, self)
+        ItemWriter::new(writer, states, self)
     }
 }

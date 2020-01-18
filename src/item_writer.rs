@@ -8,7 +8,7 @@ use std::{
 use crate::config::{EdgeConfig, ItemStyle, PrefixPart, TreeConfig};
 
 /// A sink to write single item.
-pub struct ItemWriter<'a, W> {
+pub(crate) struct ItemWriter<'a, W> {
     /// Writer.
     writer: &'a mut W,
     /// Writer options.
@@ -18,17 +18,8 @@ pub struct ItemWriter<'a, W> {
 }
 
 impl<'a, W: fmt::Write> ItemWriter<'a, W> {
-    /// Creates a new `ItemWriter` with the given node writer states.
-    pub fn new(writer: &'a mut W, states: &'a mut [ItemState]) -> Self {
-        Self::with_options(writer, states, Default::default())
-    }
-
-    /// Creates a new `ItemWriter` with the given node writer states and options.
-    pub(crate) fn with_options(
-        writer: &'a mut W,
-        states: &'a mut [ItemState],
-        opts: TreeConfig,
-    ) -> Self {
+    /// Creates a new `ItemWriter`.
+    pub(crate) fn new(writer: &'a mut W, states: &'a mut [ItemState], opts: TreeConfig) -> Self {
         Self {
             writer,
             states,
@@ -143,7 +134,7 @@ impl<'a, W: fmt::Write> fmt::Write for ItemWriter<'a, W> {
 
 /// Item writer state for single nest level.
 #[derive(Debug, Clone)]
-pub struct ItemState {
+pub(crate) struct ItemState {
     /// Item style.
     style: ItemStyle,
     /// Whether the current line is the first line.
@@ -284,6 +275,7 @@ mod tests {
         let _writer = ItemWriter::new(
             &mut buf,
             &mut [ItemStyle::new(false, EdgeConfig::Ascii).into()],
+            TreeConfig::new(),
         );
         assert!(
             buf.is_empty(),
@@ -411,7 +403,7 @@ mod tests {
     fn non_last_item_single_line() -> fmt::Result {
         let mut buf = String::new();
         let states = &mut [ItemStyle::new(false, EdgeConfig::Ascii).into()];
-        let mut writer = ItemWriter::new(&mut buf, states);
+        let mut writer = ItemWriter::new(&mut buf, states, TreeConfig::new());
         writer.write_str("foo")?;
 
         assert_eq!(buf, "|-- foo");
@@ -422,7 +414,7 @@ mod tests {
     fn last_item_single_line() -> fmt::Result {
         let mut buf = String::new();
         let states = &mut [ItemStyle::new(true, EdgeConfig::Ascii).into()];
-        let mut writer = ItemWriter::new(&mut buf, states);
+        let mut writer = ItemWriter::new(&mut buf, states, TreeConfig::new());
         writer.write_str("foo")?;
 
         assert_eq!(buf, "`-- foo");
@@ -433,7 +425,7 @@ mod tests {
     fn non_last_item_multi_line() -> fmt::Result {
         let mut buf = String::new();
         let states = &mut [ItemStyle::new(false, EdgeConfig::Ascii).into()];
-        let mut writer = ItemWriter::new(&mut buf, states);
+        let mut writer = ItemWriter::new(&mut buf, states, TreeConfig::new());
         writer.write_str("foo\n\nbar")?;
 
         assert_eq!(buf, "|-- foo\n|\n|   bar");
@@ -444,7 +436,7 @@ mod tests {
     fn last_item_multi_line() -> fmt::Result {
         let mut buf = String::new();
         let states = &mut [ItemStyle::new(true, EdgeConfig::Ascii).into()];
-        let mut writer = ItemWriter::new(&mut buf, states);
+        let mut writer = ItemWriter::new(&mut buf, states, TreeConfig::new());
         writer.write_str("foo\n\nbar")?;
 
         assert_eq!(buf, "`-- foo\n\n    bar");
