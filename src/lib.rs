@@ -3,6 +3,10 @@
 #![warn(missing_docs)]
 #![warn(clippy::missing_docs_in_private_items)]
 
-pub use self::item_writer::{EdgeConfig, ItemWriter, ItemWriterOptions, ItemWriterState};
+pub use self::{
+    item_writer::{EdgeConfig, ItemWriter, ItemWriterOptions, ItemWriterState},
+    tree_printer::TreePrinter,
+};
 
-mod item_writer;
+pub(crate) mod item_writer;
+mod tree_printer;

@@ -1,6 +1,9 @@
 //! Tree node writer.
 
-use std::{fmt, mem};
+use std::{
+    fmt::{self, Write},
+    mem,
+};
 
 /// Prefix or padding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -285,6 +288,26 @@ impl<'a, W: fmt::Write> ItemWriter<'a, W> {
             .iter_mut()
             .for_each(|state| state.reset_line_state());
     }
+
+    /// Writes a newline character if necessary, and moves the cursor to the head of the next line.
+    pub(crate) fn go_to_next_line(&mut self) -> fmt::Result {
+        let last_state = self
+            .states
+            .last()
+            .expect("Should never fail: `states` must not be empty");
+        if !last_state.is_at_line_head() {
+            self.opts
+                .build(&mut self.writer, &mut self.states)
+                .write_str("\n")?;
+        }
+        debug_assert!(self
+            .states
+            .last()
+            .expect("Should never fail: `states` must not be empty")
+            .is_at_line_head());
+
+        Ok(())
+    }
 }
 
 impl<'a, W: fmt::Write> fmt::Write for ItemWriter<'a, W> {
@@ -334,6 +357,11 @@ impl ItemWriterState {
             at_first_line: true,
             edge_status: LineEdgeStatus::LineStart,
         }
+    }
+
+    /// Returns whether the cursor is at the beginning of the line.
+    pub(crate) fn is_at_line_head(&self) -> bool {
+        self.edge_status == LineEdgeStatus::LineStart
     }
 
     /// Writes a line prefix (and padding if possible) for the current line.
