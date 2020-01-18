@@ -129,6 +129,18 @@ impl EdgeConfig {
             },
         }
     }
+
+    /// Returns whether the prefix and padding consist of whitespaces.
+    ///
+    /// When both of prefix and padding are empty, this should return `true` (i.e. an empty string
+    /// should be considered as "whitespaces").
+    fn is_prefix_whitespace(&self, last_child: bool, first_line: bool) -> bool {
+        match self {
+            Self::Ascii | Self::UnicodeSingleWidth | Self::UnicodeDoubleWidth => {
+                last_child && !first_line
+            }
+        }
+    }
 }
 
 impl Default for EdgeConfig {
@@ -138,12 +150,10 @@ impl Default for EdgeConfig {
 }
 
 /// Options for `ItemWriter`.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct ItemWriterOptions {
     /// Whether to emit trailing whitespace.
     emit_trailing_whitespace: bool,
-    /// Edge (prefix and padding) config.
-    edge: EdgeConfig,
 }
 
 impl ItemWriterOptions {
@@ -159,11 +169,13 @@ impl ItemWriterOptions {
     /// ```
     /// use std::fmt::Write;
     /// # use plaintextree::ItemWriterOptions;
+    /// use plaintextree::{EdgeConfig, ItemWriterState};
     /// let mut buf = String::new();
+    /// let mut states = &mut [ItemWriterState::new(true, EdgeConfig::Ascii)];
     /// let mut writer = {
     ///     let mut opts = ItemWriterOptions::new();
     ///     opts.emit_trailing_whitespace();
-    ///     opts.build(&mut buf, true)
+    ///     opts.build(&mut buf, states)
     /// };
     /// writer.write_str("foo\n\nbar")?;
     ///
@@ -176,98 +188,106 @@ impl ItemWriterOptions {
         self
     }
 
-    /// Sets the edge style.
-    pub fn edge(&mut self, edge: EdgeConfig) -> &mut Self {
-        self.edge = edge;
-        self
-    }
-
     /// Creates a new `ItemWriter`.
-    pub fn build<W: fmt::Write>(self, writer: W, is_last_child: bool) -> ItemWriter<W> {
-        ItemWriter::with_options(writer, is_last_child, self)
+    pub fn build<'a, W: fmt::Write>(
+        self,
+        writer: &'a mut W,
+        states: &'a mut [ItemWriterState],
+    ) -> ItemWriter<'a, W> {
+        ItemWriter::with_options(writer, states, self)
     }
 }
 
 /// A sink to write single item.
-pub struct ItemWriter<W> {
+pub struct ItemWriter<'a, W> {
     /// Writer.
-    writer: W,
-    /// Whether the item is the last child.
-    is_last_child: bool,
-    /// Options.
+    writer: &'a mut W,
+    /// Writer options.
     opts: ItemWriterOptions,
-    /// Whether the current line is the first line.
-    at_first_line: bool,
-    /// Edge emission status.
-    edge_status: LineEdgeStatus,
+    /// Item writer state.
+    states: &'a mut [ItemWriterState],
 }
 
-impl<W: fmt::Write> ItemWriter<W> {
-    /// Creates a new `ItemWriter`.
-    pub fn new(writer: W, is_last_child: bool) -> Self {
-        Self::with_options(writer, is_last_child, Default::default())
+impl<'a, W: fmt::Write> ItemWriter<'a, W> {
+    /// Creates a new `ItemWriter` with the given node writer states.
+    pub fn new(writer: &'a mut W, states: &'a mut [ItemWriterState]) -> Self {
+        Self::with_options(writer, states, Default::default())
     }
 
-    /// Creates a new `ItemWriter` with the given options.
-    fn with_options(writer: W, is_last_child: bool, opts: ItemWriterOptions) -> Self {
+    /// Creates a new `ItemWriter` with the given node writer states and options.
+    fn with_options(
+        writer: &'a mut W,
+        states: &'a mut [ItemWriterState],
+        opts: ItemWriterOptions,
+    ) -> Self {
         Self {
             writer,
-            is_last_child,
+            states,
             opts,
-            at_first_line: true,
-            edge_status: LineEdgeStatus::LineStart,
         }
     }
 
-    /// Writes a line prefix (and padding if possible) for the current line.
-    fn write_prefix(&mut self) -> fmt::Result {
-        assert_eq!(
-            self.edge_status,
-            LineEdgeStatus::LineStart,
-            "Prefix should be emitted only once for each line"
-        );
-        self.edge_status = LineEdgeStatus::PrefixEmitted;
+    /// Writes line prefixes and paddings if necessary.
+    fn write_prefix_and_padding(&mut self, line_is_empty: bool) -> fmt::Result {
+        if self.states.is_empty() {
+            return Ok(());
+        }
 
-        self.opts.edge.write_edge(
-            &mut self.writer,
-            self.is_last_child,
-            self.at_first_line,
-            PrefixOrPadding::Prefix,
-        )?;
+        // Delay the emission of the prefixes and paddings in some cases.
+        let emit_last_padding = self.opts.emit_trailing_whitespace || !line_is_empty;
+        let last_non_omissible_prefix_index = if emit_last_padding {
+            assert!(!self.states.is_empty(), "Decrement should never overflow");
+            Some(self.states.len() - 1)
+        } else {
+            self.states.iter().rposition(|state| {
+                !state
+                    .edge
+                    .is_prefix_whitespace(state.is_last_child, state.at_first_line)
+            })
+        };
+        if let Some(last_non_omissible_prefix_index) = last_non_omissible_prefix_index {
+            let Self {
+                writer,
+                states,
+                opts,
+                ..
+            } = self;
+            let writer: &mut W = *writer;
+            states
+                .iter_mut()
+                .take(last_non_omissible_prefix_index)
+                .try_for_each(|state| {
+                    if state.edge_status == LineEdgeStatus::LineStart {
+                        state.write_prefix(writer, opts.emit_trailing_whitespace)?;
+                    }
+                    if state.edge_status == LineEdgeStatus::PrefixEmitted {
+                        state.write_padding(writer)?;
+                    }
+                    debug_assert_eq!(state.edge_status, LineEdgeStatus::PaddingEmitted);
+                    Ok(())
+                })?;
 
-        if self.opts.emit_trailing_whitespace {
-            // Padding is always necessary.
-            self.write_padding()?;
+            let last_state = &mut states[last_non_omissible_prefix_index];
+            if last_state.edge_status == LineEdgeStatus::LineStart {
+                last_state.write_prefix(writer, opts.emit_trailing_whitespace)?;
+            }
+            if last_state.edge_status == LineEdgeStatus::PrefixEmitted && emit_last_padding {
+                last_state.write_padding(writer)?;
+            }
         }
 
         Ok(())
     }
 
-    /// Writes a padding after the line prefix.
-    fn write_padding(&mut self) -> fmt::Result {
-        assert_eq!(
-            self.edge_status,
-            LineEdgeStatus::PrefixEmitted,
-            "Prefix should be emitted only once after each line prefix"
-        );
-        self.edge_status = LineEdgeStatus::PaddingEmitted;
-
-        self.opts.edge.write_edge(
-            &mut self.writer,
-            self.is_last_child,
-            self.at_first_line,
-            PrefixOrPadding::Padding,
-        )
-    }
-
     /// Resets the writer status for the next new line.
     fn reset_line_state(&mut self) {
-        self.at_first_line = false;
-        self.edge_status = LineEdgeStatus::LineStart;
+        self.states
+            .iter_mut()
+            .for_each(|state| state.reset_line_state());
     }
 }
 
-impl<W: fmt::Write> fmt::Write for ItemWriter<W> {
+impl<'a, W: fmt::Write> fmt::Write for ItemWriter<'a, W> {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         for (line, at_last_line) in lines_with_last_line_flag(s) {
             // Delay the emission of the prefix (and padding) until the line content is given.
@@ -275,18 +295,8 @@ impl<W: fmt::Write> fmt::Write for ItemWriter<W> {
                 break;
             }
 
-            // Write a line prefix if necessary.
-            if self.edge_status == LineEdgeStatus::LineStart {
-                self.write_prefix()?;
-            }
-
-            // Write a padding if necessary.
-            // Delay the emission of the padding until the line content is given.
-            if self.edge_status == LineEdgeStatus::PrefixEmitted
-                && (self.opts.emit_trailing_whitespace || !line.is_empty())
-            {
-                self.write_padding()?;
-            }
+            // Write line prefixes and paddings if necessary.
+            self.write_prefix_and_padding(line.is_empty())?;
 
             // Write the line content.
             self.writer.write_str(line)?;
@@ -299,6 +309,82 @@ impl<W: fmt::Write> fmt::Write for ItemWriter<W> {
         }
 
         Ok(())
+    }
+}
+
+/// Item writer state for single nest level.
+#[derive(Debug, Clone)]
+pub struct ItemWriterState {
+    /// Whether the item is the last child.
+    is_last_child: bool,
+    /// Edge config.
+    edge: EdgeConfig,
+    /// Whether the current line is the first line.
+    at_first_line: bool,
+    /// Edge emission status.
+    edge_status: LineEdgeStatus,
+}
+
+impl ItemWriterState {
+    /// Creates a new `ItemWriterState`.
+    pub fn new(is_last_child: bool, edge: EdgeConfig) -> Self {
+        Self {
+            is_last_child,
+            edge,
+            at_first_line: true,
+            edge_status: LineEdgeStatus::LineStart,
+        }
+    }
+
+    /// Writes a line prefix (and padding if possible) for the current line.
+    fn write_prefix<W: fmt::Write>(
+        &mut self,
+        writer: &mut W,
+        emit_trailing_whitespace: bool,
+    ) -> fmt::Result {
+        assert_eq!(
+            self.edge_status,
+            LineEdgeStatus::LineStart,
+            "Prefix should be emitted only once for each line"
+        );
+        self.edge_status = LineEdgeStatus::PrefixEmitted;
+
+        self.edge.write_edge(
+            writer,
+            self.is_last_child,
+            self.at_first_line,
+            PrefixOrPadding::Prefix,
+        )?;
+
+        if emit_trailing_whitespace {
+            // Padding is always necessary.
+            self.write_padding(writer)?;
+        }
+
+        Ok(())
+    }
+
+    /// Writes a padding after the line prefix.
+    fn write_padding<W: fmt::Write>(&mut self, writer: &mut W) -> fmt::Result {
+        assert_eq!(
+            self.edge_status,
+            LineEdgeStatus::PrefixEmitted,
+            "Prefix should be emitted only once after each line prefix"
+        );
+        self.edge_status = LineEdgeStatus::PaddingEmitted;
+
+        self.edge.write_edge(
+            writer,
+            self.is_last_child,
+            self.at_first_line,
+            PrefixOrPadding::Padding,
+        )
+    }
+
+    /// Resets the writer status for the next new line.
+    fn reset_line_state(&mut self) {
+        self.at_first_line = false;
+        self.edge_status = LineEdgeStatus::LineStart;
     }
 }
 
@@ -351,7 +437,10 @@ mod tests {
     #[test]
     fn empty_tree() {
         let mut buf = String::new();
-        let _writer = ItemWriter::new(&mut buf, false);
+        let _writer = ItemWriter::new(
+            &mut buf,
+            &mut [ItemWriterState::new(false, EdgeConfig::Ascii)],
+        );
         assert!(
             buf.is_empty(),
             "Writer should write nothing until it is told to write something"
@@ -372,39 +461,54 @@ mod tests {
     /// |-- corge
     /// `-- grault
     /// ```
-    fn emit_test_tree(opts: ItemWriterOptions) -> Result<String, fmt::Error> {
+    fn emit_test_tree(edge: EdgeConfig, opts: ItemWriterOptions) -> Result<String, fmt::Error> {
         let mut buf = String::new();
+        let mut states = Vec::new();
         buf.write_str(".\n")?;
+
         {
-            let mut foo = opts.clone().build(&mut buf, false);
-            foo.write_str("foo\n")?;
+            states.push(ItemWriterState::new(false, edge.clone()));
+            opts.build(&mut buf, &mut states).write_str("foo\n")?;
             {
-                let mut bar = opts.clone().build(&mut foo, false);
-                bar.write_str("bar\n")?;
-                opts.clone()
-                    .build(&mut bar, true)
-                    .write_str("baz\n\nbaz2\n")?;
+                states.push(ItemWriterState::new(false, edge.clone()));
+                opts.build(&mut buf, &mut states).write_str("bar\n")?;
+                {
+                    states.push(ItemWriterState::new(true, edge.clone()));
+                    opts.build(&mut buf, &mut states)
+                        .write_str("baz\n\nbaz2\n")?;
+                    states.pop();
+                }
+                states.pop();
             }
             {
-                let mut qux = opts.clone().build(&mut foo, true);
-                qux.write_str("qux\n")?;
-                opts.clone().build(&mut qux, true).write_str("quux\n")?;
+                states.push(ItemWriterState::new(true, edge.clone()));
+                opts.build(&mut buf, &mut states).write_str("qux\n")?;
+                {
+                    states.push(ItemWriterState::new(true, edge.clone()));
+                    opts.build(&mut buf, &mut states).write_str("quux\n")?;
+                    states.pop();
+                }
+                states.pop();
             }
+            states.pop();
         }
-        opts.clone().build(&mut buf, false).write_str("corge\n")?;
-        opts.clone().build(&mut buf, true).write_str("grault\n")?;
+        {
+            states.push(ItemWriterState::new(false, edge.clone()));
+            opts.build(&mut buf, &mut states).write_str("corge\n")?;
+            states.pop();
+        }
+        {
+            states.push(ItemWriterState::new(true, edge.clone()));
+            opts.build(&mut buf, &mut states).write_str("grault\n")?;
+            states.pop();
+        }
 
         Ok(buf)
     }
 
     #[test]
     fn ascii_tree() -> fmt::Result {
-        let opts = {
-            let mut opts = ItemWriterOptions::new();
-            opts.edge(EdgeConfig::Ascii);
-            opts
-        };
-        let got = emit_test_tree(opts)?;
+        let got = emit_test_tree(EdgeConfig::Ascii, ItemWriterOptions::new())?;
 
         let expected = "\
                         .\n\
@@ -423,12 +527,7 @@ mod tests {
 
     #[test]
     fn unicode_single_width_tree() -> fmt::Result {
-        let opts = {
-            let mut opts = ItemWriterOptions::new();
-            opts.edge(EdgeConfig::UnicodeSingleWidth);
-            opts
-        };
-        let got = emit_test_tree(opts)?;
+        let got = emit_test_tree(EdgeConfig::UnicodeSingleWidth, ItemWriterOptions::new())?;
 
         let expected = "\
                         .\n\
@@ -447,12 +546,7 @@ mod tests {
 
     #[test]
     fn unicode_double_width_tree() -> fmt::Result {
-        let opts = {
-            let mut opts = ItemWriterOptions::new();
-            opts.edge(EdgeConfig::UnicodeDoubleWidth);
-            opts
-        };
-        let got = emit_test_tree(opts)?;
+        let got = emit_test_tree(EdgeConfig::UnicodeDoubleWidth, ItemWriterOptions::new())?;
 
         let expected = "\
                         .\n\
@@ -472,7 +566,8 @@ mod tests {
     #[test]
     fn non_last_item_single_line() -> fmt::Result {
         let mut buf = String::new();
-        let mut writer = ItemWriter::new(&mut buf, false);
+        let states = &mut [ItemWriterState::new(false, EdgeConfig::Ascii)];
+        let mut writer = ItemWriter::new(&mut buf, states);
         writer.write_str("foo")?;
 
         assert_eq!(buf, "|-- foo");
@@ -482,7 +577,8 @@ mod tests {
     #[test]
     fn last_item_single_line() -> fmt::Result {
         let mut buf = String::new();
-        let mut writer = ItemWriter::new(&mut buf, true);
+        let states = &mut [ItemWriterState::new(true, EdgeConfig::Ascii)];
+        let mut writer = ItemWriter::new(&mut buf, states);
         writer.write_str("foo")?;
 
         assert_eq!(buf, "`-- foo");
@@ -492,7 +588,8 @@ mod tests {
     #[test]
     fn non_last_item_multi_line() -> fmt::Result {
         let mut buf = String::new();
-        let mut writer = ItemWriter::new(&mut buf, false);
+        let states = &mut [ItemWriterState::new(false, EdgeConfig::Ascii)];
+        let mut writer = ItemWriter::new(&mut buf, states);
         writer.write_str("foo\n\nbar")?;
 
         assert_eq!(buf, "|-- foo\n|\n|   bar");
@@ -502,7 +599,8 @@ mod tests {
     #[test]
     fn last_item_multi_line() -> fmt::Result {
         let mut buf = String::new();
-        let mut writer = ItemWriter::new(&mut buf, true);
+        let states = &mut [ItemWriterState::new(true, EdgeConfig::Ascii)];
+        let mut writer = ItemWriter::new(&mut buf, states);
         writer.write_str("foo\n\nbar")?;
 
         assert_eq!(buf, "`-- foo\n\n    bar");
@@ -512,10 +610,11 @@ mod tests {
     #[test]
     fn non_last_item_multi_line_with_trailing_spaces() -> fmt::Result {
         let mut buf = String::new();
+        let states = &mut [ItemWriterState::new(false, EdgeConfig::Ascii)];
         let mut writer = {
             let mut opts = ItemWriterOptions::new();
             opts.emit_trailing_whitespace();
-            opts.build(&mut buf, false)
+            opts.build(&mut buf, states)
         };
         writer.write_str("foo\n\nbar")?;
 
@@ -526,10 +625,11 @@ mod tests {
     #[test]
     fn last_item_multi_line_with_trailing_spaces() -> fmt::Result {
         let mut buf = String::new();
+        let states = &mut [ItemWriterState::new(true, EdgeConfig::Ascii)];
         let mut writer = {
             let mut opts = ItemWriterOptions::new();
             opts.emit_trailing_whitespace();
-            opts.build(&mut buf, true)
+            opts.build(&mut buf, states)
         };
         writer.write_str("foo\n\nbar")?;
 
