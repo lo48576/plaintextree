@@ -38,8 +38,7 @@
 //! // `finalize()` returns `Result<&mut String, _>` here.
 //! let _ = printer.finalize()?;
 //!
-//! let expected = "\
-//!                 .\n\
+//! let expected = ".\n\
 //!                 |-- foo\n\
 //!                 |   |-- bar\n\
 //!                 |   |   `-- baz\n\
@@ -75,8 +74,7 @@
 //! // `finalize()` returns `Result<String, _>` here.
 //! let got = printer.finalize()?;
 //!
-//! let expected = "\
-//!                 .\n\
+//! let expected = ".\n\
 //!                 ├── foo\n\
 //!                 │   ├── bar\n\
 //!                 │   └── baz\n\
