@@ -163,11 +163,31 @@ pub struct ItemStyle {
 
 impl ItemStyle {
     /// Creates a new `ItemStyle`.
+    ///
+    /// Prefer [`last()`][last] and [`non_last()`][non_last] when `is_last_child` argument is
+    /// constant.
+    ///
+    /// [last]: #method.last
+    /// [non_last]: #method.non_last
     pub fn new(is_last_child: bool, edge: EdgeConfig) -> Self {
         Self {
             is_last_child,
             edge,
         }
+    }
+
+    /// Creates a new `ItemStyle` for the last child.
+    ///
+    /// This is same as `ItemStyle::new(true, edge)`.
+    pub fn last(edge: EdgeConfig) -> Self {
+        Self::new(true, edge)
+    }
+
+    /// Creates a new `ItemStyle` for a non-last child.
+    ///
+    /// This is same as `ItemStyle::new(false, edge)`.
+    pub fn non_last(edge: EdgeConfig) -> Self {
+        Self::new(false, edge)
     }
 
     /// Returns whether the item is the last child.
@@ -208,7 +228,7 @@ impl TreeConfigBuilder {
     ///     .build();
     ///
     /// let mut writer = TreePrinter::new(String::new(), opts);
-    /// writer.open_node(ItemStyle::new(true, EdgeConfig::Ascii), "foo\n\nbar")?;
+    /// writer.open_node(ItemStyle::last(EdgeConfig::Ascii), "foo\n\nbar")?;
     /// let buf = writer.finalize()?;
     ///
     /// // Note that `"    "` is emitted for an empty line between "foo" and "bar".
@@ -234,7 +254,7 @@ impl TreeConfigBuilder {
     /// let opts = TreeConfig::new();
     ///
     /// let mut writer = TreePrinter::new(String::new(), opts);
-    /// writer.open_node(ItemStyle::new(true, EdgeConfig::Ascii), "foo")?;
+    /// writer.open_node(ItemStyle::last(EdgeConfig::Ascii), "foo")?;
     /// let buf = writer.finalize()?;
     ///
     /// // Note that the newline character at the end of the output.
@@ -251,7 +271,7 @@ impl TreeConfigBuilder {
     ///
     /// let mut writer = TreePrinter::new(String::new(), opts);
     /// // Feed a trailing newline explicitly.
-    /// writer.open_node(ItemStyle::new(true, EdgeConfig::Ascii), "foo\n")?;
+    /// writer.open_node(ItemStyle::last(EdgeConfig::Ascii), "foo\n")?;
     /// let buf = writer.finalize()?;
     ///
     /// // Note that there are only one newline character at the end of the output.
@@ -269,7 +289,7 @@ impl TreeConfigBuilder {
     ///     .build();
     ///
     /// let mut writer = TreePrinter::new(String::new(), opts);
-    /// writer.open_node(ItemStyle::new(true, EdgeConfig::Ascii), "foo")?;
+    /// writer.open_node(ItemStyle::last(EdgeConfig::Ascii), "foo")?;
     /// let buf = writer.finalize()?;
     ///
     /// // Note that there are no newline characters at the end of the output.

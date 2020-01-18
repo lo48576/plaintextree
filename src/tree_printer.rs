@@ -126,19 +126,19 @@ mod tests {
         buf.write_str(".\n")?;
         let mut printer = TreePrinter::new(&mut buf, TreeConfig::new());
 
-        printer.open_node(ItemStyle::new(false, edge.clone()), "foo")?;
-        printer.open_node(ItemStyle::new(false, edge.clone()), "bar")?;
-        printer.open_node(ItemStyle::new(true, edge.clone()), "baz\n\nbaz2")?;
+        printer.open_node(ItemStyle::non_last(edge.clone()), "foo")?;
+        printer.open_node(ItemStyle::non_last(edge.clone()), "bar")?;
+        printer.open_node(ItemStyle::last(edge.clone()), "baz\n\nbaz2")?;
         printer.close_node()?;
         printer.close_node()?;
-        printer.open_node(ItemStyle::new(true, edge.clone()), "qux")?;
-        printer.open_node(ItemStyle::new(true, edge.clone()), "quux")?;
+        printer.open_node(ItemStyle::last(edge.clone()), "qux")?;
+        printer.open_node(ItemStyle::last(edge.clone()), "quux")?;
         printer.close_node()?;
         printer.close_node()?;
         printer.close_node()?;
-        printer.open_node(ItemStyle::new(false, edge.clone()), "corge\n")?;
+        printer.open_node(ItemStyle::non_last(edge.clone()), "corge\n")?;
         printer.close_node()?;
-        printer.open_node(ItemStyle::new(true, edge.clone()), "grault")?;
+        printer.open_node(ItemStyle::last(edge.clone()), "grault")?;
         printer.close_node()?;
 
         printer.finalize()?;

@@ -274,7 +274,7 @@ mod tests {
         let mut buf = String::new();
         let _writer = ItemWriter::new(
             &mut buf,
-            &mut [ItemStyle::new(false, EdgeConfig::Ascii).into()],
+            &mut [ItemStyle::non_last(EdgeConfig::Ascii).into()],
             TreeConfig::new(),
         );
         assert!(
@@ -303,13 +303,13 @@ mod tests {
         buf.write_str(".\n")?;
 
         {
-            states.push(ItemStyle::new(false, edge.clone()).into());
+            states.push(ItemStyle::non_last(edge.clone()).into());
             opts.writer(&mut buf, &mut states).write_str("foo\n")?;
             {
-                states.push(ItemStyle::new(false, edge.clone()).into());
+                states.push(ItemStyle::non_last(edge.clone()).into());
                 opts.writer(&mut buf, &mut states).write_str("bar\n")?;
                 {
-                    states.push(ItemStyle::new(true, edge.clone()).into());
+                    states.push(ItemStyle::last(edge.clone()).into());
                     opts.writer(&mut buf, &mut states)
                         .write_str("baz\n\nbaz2\n")?;
                     states.pop();
@@ -317,10 +317,10 @@ mod tests {
                 states.pop();
             }
             {
-                states.push(ItemStyle::new(true, edge.clone()).into());
+                states.push(ItemStyle::last(edge.clone()).into());
                 opts.writer(&mut buf, &mut states).write_str("qux\n")?;
                 {
-                    states.push(ItemStyle::new(true, edge.clone()).into());
+                    states.push(ItemStyle::last(edge.clone()).into());
                     opts.writer(&mut buf, &mut states).write_str("quux\n")?;
                     states.pop();
                 }
@@ -329,12 +329,12 @@ mod tests {
             states.pop();
         }
         {
-            states.push(ItemStyle::new(false, edge.clone()).into());
+            states.push(ItemStyle::non_last(edge.clone()).into());
             opts.writer(&mut buf, &mut states).write_str("corge\n")?;
             states.pop();
         }
         {
-            states.push(ItemStyle::new(true, edge.clone()).into());
+            states.push(ItemStyle::last(edge.clone()).into());
             opts.writer(&mut buf, &mut states).write_str("grault\n")?;
             states.pop();
         }
@@ -402,7 +402,7 @@ mod tests {
     #[test]
     fn non_last_item_single_line() -> fmt::Result {
         let mut buf = String::new();
-        let states = &mut [ItemStyle::new(false, EdgeConfig::Ascii).into()];
+        let states = &mut [ItemStyle::non_last(EdgeConfig::Ascii).into()];
         let mut writer = ItemWriter::new(&mut buf, states, TreeConfig::new());
         writer.write_str("foo")?;
 
@@ -413,7 +413,7 @@ mod tests {
     #[test]
     fn last_item_single_line() -> fmt::Result {
         let mut buf = String::new();
-        let states = &mut [ItemStyle::new(true, EdgeConfig::Ascii).into()];
+        let states = &mut [ItemStyle::last(EdgeConfig::Ascii).into()];
         let mut writer = ItemWriter::new(&mut buf, states, TreeConfig::new());
         writer.write_str("foo")?;
 
@@ -424,7 +424,7 @@ mod tests {
     #[test]
     fn non_last_item_multi_line() -> fmt::Result {
         let mut buf = String::new();
-        let states = &mut [ItemStyle::new(false, EdgeConfig::Ascii).into()];
+        let states = &mut [ItemStyle::non_last(EdgeConfig::Ascii).into()];
         let mut writer = ItemWriter::new(&mut buf, states, TreeConfig::new());
         writer.write_str("foo\n\nbar")?;
 
@@ -435,7 +435,7 @@ mod tests {
     #[test]
     fn last_item_multi_line() -> fmt::Result {
         let mut buf = String::new();
-        let states = &mut [ItemStyle::new(true, EdgeConfig::Ascii).into()];
+        let states = &mut [ItemStyle::last(EdgeConfig::Ascii).into()];
         let mut writer = ItemWriter::new(&mut buf, states, TreeConfig::new());
         writer.write_str("foo\n\nbar")?;
 
@@ -446,7 +446,7 @@ mod tests {
     #[test]
     fn non_last_item_multi_line_with_trailing_spaces() -> fmt::Result {
         let mut buf = String::new();
-        let states = &mut [ItemStyle::new(false, EdgeConfig::Ascii).into()];
+        let states = &mut [ItemStyle::non_last(EdgeConfig::Ascii).into()];
         let mut writer = {
             let mut opts = TreeConfigBuilder::new();
             opts.emit_trailing_whitespace(true);
@@ -461,7 +461,7 @@ mod tests {
     #[test]
     fn last_item_multi_line_with_trailing_spaces() -> fmt::Result {
         let mut buf = String::new();
-        let states = &mut [ItemStyle::new(true, EdgeConfig::Ascii).into()];
+        let states = &mut [ItemStyle::last(EdgeConfig::Ascii).into()];
         let mut writer = {
             let mut opts = TreeConfigBuilder::new();
             opts.emit_trailing_whitespace(true);
