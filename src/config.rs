@@ -221,6 +221,63 @@ impl TreeConfigBuilder {
         self
     }
 
+    /// Let the writer emit trailing newline automatically at the end of the tree.
+    ///
+    /// The value is `true` by default.
+    ///
+    /// # Examples
+    ///
+    /// By default, the tree printer will put a newline at the end of the tree, if there is not.
+    ///
+    /// ```
+    /// use plaintextree::{EdgeConfig, ItemStyle, TreeConfig, TreePrinter};
+    /// let opts = TreeConfig::new();
+    /// let mut writer = TreePrinter::new(String::new(), opts);
+    /// writer.open_node(ItemStyle::new(true, EdgeConfig::Ascii), "foo")?;
+    /// let buf = writer.finalize()?;
+    ///
+    /// // Note that the newline character at the end of the output.
+    /// assert_eq!(buf, "`-- foo\n");
+    /// # plaintextree::tree_printer::Result::Ok(())
+    /// ```
+    ///
+    /// If there are already a newline, the printer does not emit an additional newline.
+    ///
+    /// ```
+    /// use plaintextree::{EdgeConfig, ItemStyle, TreeConfig, TreePrinter};
+    /// let opts = TreeConfig::new();
+    /// let mut writer = TreePrinter::new(String::new(), opts);
+    /// // Feed a trailing newline explicitly.
+    /// writer.open_node(ItemStyle::new(true, EdgeConfig::Ascii), "foo\n")?;
+    /// let buf = writer.finalize()?;
+    ///
+    /// // Note that there are only one newline character at the end of the output.
+    /// assert_eq!(buf, "`-- foo\n");
+    /// # plaintextree::tree_printer::Result::Ok(())
+    /// ```
+    ///
+    /// With this flag unset, the tree printer does not emit an additional newline.
+    ///
+    /// ```
+    /// use plaintextree::{EdgeConfig, ItemStyle, TreeConfigBuilder, TreePrinter};
+    /// let opts = {
+    ///     let mut opts = TreeConfigBuilder::new();
+    ///     opts.emit_trailing_newline(false);
+    ///     opts.build()
+    /// };
+    /// let mut writer = TreePrinter::new(String::new(), opts);
+    /// writer.open_node(ItemStyle::new(true, EdgeConfig::Ascii), "foo")?;
+    /// let buf = writer.finalize()?;
+    ///
+    /// // Note that there are no newline characters at the end of the output.
+    /// assert_eq!(buf, "`-- foo");
+    /// # plaintextree::tree_printer::Result::Ok(())
+    /// ```
+    pub fn emit_trailing_newline(&mut self, v: bool) -> &mut Self {
+        self.config.emit_trailing_newline = v;
+        self
+    }
+
     /// Builds a `TreeConfig`.
     pub fn build(self) -> TreeConfig {
         self.config
@@ -234,12 +291,17 @@ pub struct TreeConfig {
     ///
     /// Default is `false`.
     emit_trailing_whitespace: bool,
+    /// Whether to emit a newline automatically at the tail of the tree.
+    ///
+    /// Default is `true`.
+    emit_trailing_newline: bool,
 }
 
 impl Default for TreeConfig {
     fn default() -> Self {
         Self {
             emit_trailing_whitespace: false,
+            emit_trailing_newline: true,
         }
     }
 }
@@ -253,6 +315,11 @@ impl TreeConfig {
     /// Returns whether the writer should emit trailing whitespace if the line has no content.
     pub fn emit_trailing_whitespace(self) -> bool {
         self.emit_trailing_whitespace
+    }
+
+    /// Returns whether the writer should emit trailing newline at the tail of the tree.
+    pub fn emit_trailing_newline(self) -> bool {
+        self.emit_trailing_newline
     }
 
     /// Creates a new `ItemWriter`.

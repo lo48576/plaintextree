@@ -92,10 +92,12 @@ impl<W: fmt::Write> TreePrinter<W> {
             return Err(Error::ExtraNodeClose);
         }
 
-        // Go to newline to prevent the writer from writing next nodes to the same line.
-        self.opts
-            .writer(&mut self.writer, &mut self.states)
-            .go_to_next_line()?;
+        if self.opts.emit_trailing_newline() {
+            // Go to newline automatically at the end of a node.
+            self.opts
+                .writer(&mut self.writer, &mut self.states)
+                .go_to_next_line()?;
+        }
 
         self.states.pop();
 
