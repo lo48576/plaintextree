@@ -103,7 +103,7 @@ impl<'a, W: fmt::Write> ItemWriter<'a, W> {
             .expect("Should never fail: `states` must not be empty");
         if !last_state.is_at_line_head() {
             self.opts
-                .build(&mut self.writer, &mut self.states)
+                .writer(&mut self.writer, &mut self.states)
                 .write_str("\n")?;
         }
         debug_assert!(self
@@ -312,13 +312,13 @@ mod tests {
 
         {
             states.push(ItemStyle::new(false, edge.clone()).into());
-            opts.build(&mut buf, &mut states).write_str("foo\n")?;
+            opts.writer(&mut buf, &mut states).write_str("foo\n")?;
             {
                 states.push(ItemStyle::new(false, edge.clone()).into());
-                opts.build(&mut buf, &mut states).write_str("bar\n")?;
+                opts.writer(&mut buf, &mut states).write_str("bar\n")?;
                 {
                     states.push(ItemStyle::new(true, edge.clone()).into());
-                    opts.build(&mut buf, &mut states)
+                    opts.writer(&mut buf, &mut states)
                         .write_str("baz\n\nbaz2\n")?;
                     states.pop();
                 }
@@ -326,10 +326,10 @@ mod tests {
             }
             {
                 states.push(ItemStyle::new(true, edge.clone()).into());
-                opts.build(&mut buf, &mut states).write_str("qux\n")?;
+                opts.writer(&mut buf, &mut states).write_str("qux\n")?;
                 {
                     states.push(ItemStyle::new(true, edge.clone()).into());
-                    opts.build(&mut buf, &mut states).write_str("quux\n")?;
+                    opts.writer(&mut buf, &mut states).write_str("quux\n")?;
                     states.pop();
                 }
                 states.pop();
@@ -338,12 +338,12 @@ mod tests {
         }
         {
             states.push(ItemStyle::new(false, edge.clone()).into());
-            opts.build(&mut buf, &mut states).write_str("corge\n")?;
+            opts.writer(&mut buf, &mut states).write_str("corge\n")?;
             states.pop();
         }
         {
             states.push(ItemStyle::new(true, edge.clone()).into());
-            opts.build(&mut buf, &mut states).write_str("grault\n")?;
+            opts.writer(&mut buf, &mut states).write_str("grault\n")?;
             states.pop();
         }
 
@@ -458,7 +458,7 @@ mod tests {
         let mut writer = {
             let mut opts = TreeConfigBuilder::new();
             opts.emit_trailing_whitespace();
-            opts.build().build(&mut buf, states)
+            opts.build().writer(&mut buf, states)
         };
         writer.write_str("foo\n\nbar")?;
 
@@ -473,7 +473,7 @@ mod tests {
         let mut writer = {
             let mut opts = TreeConfigBuilder::new();
             opts.emit_trailing_whitespace();
-            opts.build().build(&mut buf, states)
+            opts.build().writer(&mut buf, states)
         };
         writer.write_str("foo\n\nbar")?;
 

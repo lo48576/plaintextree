@@ -206,7 +206,7 @@ impl TreeConfigBuilder {
     /// let mut writer = {
     ///     let mut opts = TreeConfigBuilder::new();
     ///     opts.emit_trailing_whitespace();
-    ///     opts.build().build(&mut buf, states)
+    ///     opts.build().writer(&mut buf, states)
     /// };
     /// writer.write_str("foo\n\nbar")?;
     ///
@@ -244,7 +244,7 @@ impl TreeConfig {
     }
 
     /// Creates a new `ItemWriter`.
-    pub fn build<'a, W: fmt::Write>(
+    pub fn writer<'a, W: fmt::Write>(
         self,
         writer: &'a mut W,
         states: &'a mut [ItemState],

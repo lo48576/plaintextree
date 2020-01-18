@@ -73,13 +73,13 @@ impl<W: fmt::Write> TreePrinter<W> {
         // Go to newline before emitting new node.
         if !self.states.is_empty() {
             self.opts
-                .build(&mut self.writer, &mut self.states)
+                .writer(&mut self.writer, &mut self.states)
                 .go_to_next_line()?;
         }
 
         self.states.push(style.into());
         self.opts
-            .build(&mut self.writer, &mut self.states)
+            .writer(&mut self.writer, &mut self.states)
             .write_fmt(format_args!("{}", content))?;
 
         Ok(())
@@ -94,7 +94,7 @@ impl<W: fmt::Write> TreePrinter<W> {
 
         // Go to newline to prevent the writer from writing next nodes to the same line.
         self.opts
-            .build(&mut self.writer, &mut self.states)
+            .writer(&mut self.writer, &mut self.states)
             .go_to_next_line()?;
 
         self.states.pop();
