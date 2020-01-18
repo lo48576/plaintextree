@@ -114,7 +114,7 @@ impl<W: fmt::Write> TreePrinter<W> {
 mod tests {
     use super::*;
 
-    use crate::item_writer::EdgeConfig;
+    use crate::config::EdgeConfig;
 
     fn emit_test_tree(edge: EdgeConfig) -> Result<String> {
         let mut buf = String::new();
