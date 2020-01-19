@@ -97,7 +97,7 @@
 #![warn(clippy::missing_docs_in_private_items)]
 
 pub use self::{
-    config::{EdgeConfig, ItemStyle, TreeConfig, TreeConfigBuilder},
+    config::{unicode, EdgeConfig, ItemStyle, TreeConfig, TreeConfigBuilder},
     tree_printer::{Error, Result, TreePrinter},
 };
 

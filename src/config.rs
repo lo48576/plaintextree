@@ -4,6 +4,10 @@ use std::fmt;
 
 use crate::item_writer::{ItemState, ItemWriter};
 
+use self::unicode::UnicodeEdgeConfig;
+
+pub mod unicode;
+
 /// Part of a prefix.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum PrefixPart {
@@ -36,6 +40,8 @@ pub enum EdgeConfig {
     ///
     /// [unix-tree]: http://mama.indstate.edu/users/ice/tree/
     Ascii,
+    /// Unicode ruled lines.
+    Unicode(UnicodeEdgeConfig),
     /// Unicode assuming ruled line characters are single width (half width).
     ///
     /// The same style as [`tree` command][unix-tree] with `LANG=(lang).utf8` for UNIX.
@@ -112,6 +118,7 @@ impl EdgeConfig {
                 (false, false, Prefix) => writer.write_str("|"),
                 (false, false, Padding) => writer.write_str("   "),
             },
+            Self::Unicode(config) => config.write_edge(writer, last_child, first_line, fragment),
             Self::UnicodeSingleWidth => match (first_line, last_child, fragment) {
                 (true, true, Prefix) => writer.write_str("\u{2514}\u{2500}\u{2500}"),
                 (true, false, Prefix) => writer.write_str("\u{251C}\u{2500}\u{2500}"),
@@ -142,6 +149,7 @@ impl EdgeConfig {
             Self::Ascii | Self::UnicodeSingleWidth | Self::UnicodeDoubleWidth => {
                 last_child && !first_line
             }
+            Self::Unicode(config) => config.is_prefix_whitespace(last_child, first_line),
         }
     }
 }
